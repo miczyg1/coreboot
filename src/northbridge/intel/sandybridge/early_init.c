@@ -233,7 +233,8 @@ void systemagent_early_init(void)
 
 void northbridge_romstage_finalize(int s3resume)
 {
-	MCHBAR16(SSKPD) = 0xCAFE;
+	if (get_platform_type() == PLATFORM_MOBILE)
+		MCHBAR16(SSKPD) = 0xCAFE;
 
 	romstage_handoff_init(s3resume);
 }
