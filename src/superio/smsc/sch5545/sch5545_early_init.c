@@ -87,7 +87,7 @@ static void set_irq(pnp_devfn_t dev, uint8_t irq_device, unsigned irq)
  */
 void sch5545_set_led(unsigned runtime_reg_base, unsigned color, uint16_t blink)
 {
-	uint8_t val = blink && SCH5545_LED_BLINK_MASK;
+	uint8_t val = blink & SCH5545_LED_BLINK_MASK;
 	if (color)
 		val |= SCH5545_LED_COLOR_GREEN;
 	outb(val, runtime_reg_base + SCH5545_RR_LED);
