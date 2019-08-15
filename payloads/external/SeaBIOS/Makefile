@@ -54,9 +54,6 @@ else ifeq ($(CONFIG_CONSOLE_SERIAL)$(CONFIG_DRIVERS_UART_8250MEM_32),yy)
 else
 	echo "# CONFIG_DEBUG_SERIAL is not set" >> seabios/.config
 endif
-ifneq ($(CONFIG_SEABIOS_THREAD_OPTIONROMS),y)
-	echo "# CONFIG_THREAD_OPTIONROMS is not set" >> seabios/.config
-endif
 ifeq ($(CONFIG_SEABIOS_VGA_COREBOOT),y)
 	echo "CONFIG_VGA_COREBOOT=y" >> seabios/.config
 	echo "CONFIG_BUILD_VGABIOS=y" >> seabios/.config
