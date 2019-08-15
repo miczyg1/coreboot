@@ -298,7 +298,8 @@ config BOOTSPLASH_FILE
 	# Default value set at the end of the file
 	help
 	  The path and filename of the file to use as graphical bootsplash
-	  screen. The file format has to be jpg.
+	  screen. The file format has to be jpg or bmp. If bmp is passed, it
+	  is lzma compressed with correct suffix for SeaBIOS support.
 
 config HAVE_RAMPAYLOAD
 	bool
