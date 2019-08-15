@@ -48,7 +48,8 @@ void mainboard_romstage_entry(unsigned long bist)
 {
 	int s3resume = 0;
 
-	if (MCHBAR16(SSKPD) == 0xCAFE)
+	if (get_platform_type() == PLATFORM_MOBILE &&
+	    MCHBAR16(SSKPD) == 0xCAFE)
 		system_reset();
 
 	if (bist == 0)
