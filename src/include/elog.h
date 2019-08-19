@@ -213,6 +213,8 @@ struct elog_event_mem_cache_update {
 #define ELOG_EC_DEVICE_EVENT_TRACKPAD       0x01
 #define ELOG_EC_DEVICE_EVENT_DSP            0x02
 #define ELOG_EC_DEVICE_EVENT_WIFI           0x03
+#define ELOG_EC_DEVICE_EVENT_CASE_OPEN      0x04
+#define ELOG_EC_DEVICE_EVENT_CASE_CLOSE     0x05
 
 /* S0ix sleep/wake */
 #define ELOG_TYPE_S0IX_ENTER              0xaf
