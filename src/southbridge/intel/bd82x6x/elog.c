@@ -63,6 +63,10 @@ void pch_log_state(void)
 	/* Power Button Override */
 	if (pm1_sts & (1 << 11))
 		elog_add_event(ELOG_TYPE_POWER_BUTTON_OVERRIDE);
+	
+	/* Power Button */
+	if (pm1_sts & (1 << 8))
+		elog_add_event(ELOG_TYPE_POWER_BUTTON);
 
 	/* System Reset Status (reset button pushed) */
 	if (gen_pmcon_2 & (1 << 4))
@@ -80,6 +84,9 @@ void pch_log_state(void)
 	/*
 	 * Wake sources
 	 */
+	/* Power Button */
+	if (pm1_sts & (1 << 8))
+		elog_add_event_wake(ELOG_WAKE_SOURCE_PWRBTN, 0);
 
 	/* RTC */
 	if (pm1_sts & (1 << 10))
