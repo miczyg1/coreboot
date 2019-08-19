@@ -32,6 +32,7 @@
 #include <assert.h>
 #include <regex.h>
 #include <commonlib/cbmem_id.h>
+#include <commonlib/elog.h>
 #include <commonlib/timestamp_serialized.h>
 #include <commonlib/tcpa_log_serialized.h>
 #include <commonlib/coreboot_tables.h>
@@ -1080,6 +1081,228 @@ static void dump_coverage(void)
 	unmap_memory(&coverage_mapping);
 }
 
+struct event_to_name {
+	u8 event;
+	char *name;
+};
+
+static const struct event_to_name event_types[] = { ELOG_EVENT_TO_NAME_TABLE };
+static const struct event_to_name ec_events[] = { EC_EVENT_TO_NAME_TABLE };
+static const struct event_to_name wake_events[] = { WAKE_EVENT_TO_NAME_TABLE };
+static const struct event_to_name ec_dev_events[] = { EC_DEVICE_TO_NAME_TABLE };
+static const struct event_to_name mrc_upd_slots[] = {
+	{ ELOG_MEM_CACHE_UPDATE_SLOT_NORMAL,	"NORMAL" },
+	{ ELOG_MEM_CACHE_UPDATE_SLOT_RECOVERY,	"RECOVERY" },
+	{ ELOG_MEM_CACHE_UPDATE_SLOT_VARIABLE,	"VARIABLE" }
+};
+
+static const char* me_bios_paths[] = {
+	"ME normal BIOS path",
+	"ME S3 wake BIOS path",
+	"ME error BIOS path",
+	"ME recovery BIOS path",
+	"ME disable BIOS path",
+	"ME firmware update BIOS path",
+};
+
+static int bcd_to_decimal(uint8_t x) {
+	return x - 6 * (x >> 4);
+}
+
+static char *get_name_from_table(const struct event_to_name *event_table,
+				       u8 event)
+{
+	size_t table_size;
+
+	if (event_table == event_types)
+		table_size = ARRAY_SIZE(event_types);
+	else if (event_table == ec_events)
+		table_size = ARRAY_SIZE(ec_events);
+	else if (event_table == wake_events)
+		table_size = ARRAY_SIZE(wake_events);
+	else if (event_table == ec_dev_events)
+		table_size = ARRAY_SIZE(ec_dev_events);
+	else if (event_table == mrc_upd_slots)
+		table_size = ARRAY_SIZE(mrc_upd_slots);
+	else
+		return "Unknown";
+
+	for (size_t i = 0; i < table_size; i++) {
+		if (event_table[i].event == event) {
+			return event_table[i].name;
+		}
+	}
+	return "Unknown event type";
+}
+
+static void print_raw(uint8_t* start, size_t end)
+{
+	size_t i, j;
+	for (i = 0; i < end; i += 16) {
+		for (j = 0; j < 16; j++) {
+			if (i + j >= end)
+				break;
+			printf("%02x ", start[i+j]);
+		}
+		printf("\n");
+	}
+}
+
+static void print_elog_date(struct event_header * ev_header)
+{
+	printf("[20%02d-%02d-%02d %02d:%02d:%02d] ",
+		bcd_to_decimal(ev_header->year),
+		bcd_to_decimal(ev_header->month),
+		bcd_to_decimal(ev_header->day),
+		bcd_to_decimal(ev_header->hour),
+		bcd_to_decimal(ev_header->minute),
+		bcd_to_decimal(ev_header->second));
+}
+
+struct cbmem_elog {
+	u32 magic;
+	u8 version;
+	u8 header_size;
+	u8 reserved[2];
+} __attribute__ ((__packed__));
+
+static void dump_elog(void)
+{
+	uint64_t start;
+	size_t size, offset;
+	const void *elog;
+	uint8_t* elog_data;
+	size_t elog_size;
+	struct mapping elog_mapping;
+	struct cbmem_elog *cb_elog;
+	struct event_header *ev_header;
+	struct elog_event_data_wake *wake_ev;
+	struct elog_event_data_me_extended *me_ext_ev;
+	struct elog_event_mem_cache_update *mrc_event;
+	struct elog_event_extended_event *elog_ext;
+
+	if (find_cbmem_entry(CBMEM_ID_ELOG, &start, &size)) {
+		fprintf(stderr, "ELOG area not found\n");
+		return;
+	}
+
+	elog = map_memory(&elog_mapping, start, size);
+	if (!elog)
+		die("Unable to map elog area.\n");
+
+	cb_elog = (struct cbmem_elog *)elog;
+
+	printf("Dumping ELOG data...\n");
+	printf("ELOG version %d\n", cb_elog->version);
+
+	offset = cb_elog->header_size;
+
+	while (*(uint8_t *)(elog + offset) != ELOG_TYPE_EOL) {
+		ev_header = (struct event_header *)(elog + offset);
+		print_elog_date(ev_header);
+		printf("%s", get_name_from_table(event_types, ev_header->type));
+
+		elog_data = (uint8_t *)
+			    (elog + offset + sizeof(struct event_header));
+		elog_size = ev_header->length - sizeof(struct event_header) - 1;
+
+		if (ev_header-> type < 0x80) {
+			offset += ev_header->length;
+			if (elog_size != 0) {
+				printf(". Data: ");
+				print_raw(elog_data, elog_size);
+			} else
+				printf("\n");
+			continue;
+		}
+
+		switch (ev_header->type) {
+		case ELOG_TYPE_EC_EVENT:
+			printf(": %s\n", get_name_from_table(ec_events,
+							     *elog_data));
+			break;
+		case ELOG_TYPE_ACPI_ENTER:
+		case ELOG_TYPE_ACPI_WAKE:
+			printf(": S%d\n", bcd_to_decimal(*elog_data));
+			break;
+		case ELOG_TYPE_WAKE_SOURCE:
+			wake_ev = (struct elog_event_data_wake *)
+				  (elog + offset + sizeof(struct event_header));
+			printf(": %s instance %d\n",
+				get_name_from_table(wake_events,
+						    wake_ev->source),
+				wake_ev->instance);
+			break;
+		case ELOG_TYPE_MEM_CACHE_UPDATE: 
+			mrc_event = (struct elog_event_mem_cache_update *)
+				    (elog + offset + sizeof(struct event_header));
+			printf(": slot %s, status %s\n",
+				get_name_from_table(mrc_upd_slots,
+						    mrc_event->slot),
+				mrc_event->status ? "FAIL" : "SUCCESS");
+			break;
+		case ELOG_TYPE_EC_DEVICE_EVENT:
+			printf(": %s\n", get_name_from_table(ec_dev_events,
+							     *elog_data));
+			break;
+		case ELOG_TYPE_EXTENDED_EVENT:
+			elog_ext = (struct elog_event_extended_event *)
+				   (elog + offset + sizeof(struct event_header));
+			if (elog_ext->event_type == ELOG_SLEEP_PENDING_PM1_WAKE)
+				printf(": Pending PM1 wake (%08d)\n",
+					elog_ext->event_complement);
+			else if (elog_ext->event_type ==
+				 ELOG_SLEEP_PENDING_GPE0_WAKE)
+				 printf(": Pending GPE0 wake (%08d)\n",
+					elog_ext->event_complement);
+			else
+				printf(": Unknown (%08d)\n",
+					elog_ext->event_complement);
+			break;
+		case ELOG_TYPE_CROS_RECOVERY_MODE: 
+			printf(": reason %02x\n", *elog_data);
+			break;
+		case ELOG_TYPE_MANAGEMENT_ENGINE:
+			if (*elog_data < 6)
+				printf(": %s\n", me_bios_paths[*elog_data]);
+			else
+				printf ("Unknown\n");
+			break;
+		case ELOG_TYPE_MANAGEMENT_ENGINE_EXT:
+			me_ext_ev = (struct elog_event_data_me_extended *)
+				    (elog + offset + sizeof(struct event_header));
+			printf( ":\n"
+				"\t\t\tCurrent working state: %02x\n"
+				"\t\t\tOperation state: %02x\n"
+				"\t\t\tOperation mode: %02x\n"
+				"\t\t\tError code: %02x\n"
+				"\t\t\tProgress code: %02x\n"
+				"\t\t\tCurrent PM event: %02x\n"
+				"\t\t\tCurrent state: %02x\n",
+				me_ext_ev->current_working_state,
+				me_ext_ev->operation_state,
+				me_ext_ev->operation_mode,
+				me_ext_ev->error_code,
+				me_ext_ev->progress_code,
+				me_ext_ev->current_pmevent,
+				me_ext_ev->current_state);
+			break;
+		default:
+			if (elog_size != 0) { 
+				printf(": Unknown. Data: ");
+				print_raw(elog_data, elog_size);
+			} else
+				printf("\n");
+			break;
+		}
+
+		offset += ev_header->length;
+	}
+
+	unmap_memory(&elog_mapping);
+}
+
+
 static void print_version(void)
 {
 	printf("cbmem v%s -- ", CBMEM_VERSION);
@@ -1101,6 +1324,7 @@ static void print_usage(const char *name, int exit_code)
 	     "   -c | --console:                   print cbmem console\n"
 	     "   -1 | --oneboot:                   print cbmem console for last boot only\n"
 	     "   -C | --coverage:                  dump coverage information\n"
+	     "   -e | --elog:                      dump event log\n"
 	     "   -l | --list:                      print cbmem table of contents\n"
 	     "   -x | --hexdump:                   print hexdump of cbmem area\n"
 	     "   -r | --rawdump ID:                print rawdump of specific ID (in hex) of cbtable\n"
@@ -1234,6 +1458,7 @@ int main(int argc, char** argv)
 	int print_defaults = 1;
 	int print_console = 0;
 	int print_coverage = 0;
+	int print_elog = 0;
 	int print_list = 0;
 	int print_hexdump = 0;
 	int print_rawdump = 0;
@@ -1248,6 +1473,7 @@ int main(int argc, char** argv)
 		{"console", 0, 0, 'c'},
 		{"oneboot", 0, 0, '1'},
 		{"coverage", 0, 0, 'C'},
+		{"elog", 0, 0, 'e'},
 		{"list", 0, 0, 'l'},
 		{"tcpa-log", 0, 0, 'L'},
 		{"timestamps", 0, 0, 't'},
@@ -1259,7 +1485,7 @@ int main(int argc, char** argv)
 		{"help", 0, 0, 'h'},
 		{0, 0, 0, 0}
 	};
-	while ((opt = getopt_long(argc, argv, "c1CltTLxVvh?r:",
+	while ((opt = getopt_long(argc, argv, "c1CeltTLxVvh?r:",
 				  long_options, &option_index)) != EOF) {
 		switch (opt) {
 		case 'c':
@@ -1273,6 +1499,10 @@ int main(int argc, char** argv)
 			break;
 		case 'C':
 			print_coverage = 1;
+			print_defaults = 0;
+			break;
+		case 'e':
+			print_elog = 1;
 			print_defaults = 0;
 			break;
 		case 'l':
@@ -1400,6 +1630,9 @@ int main(int argc, char** argv)
 
 	if (print_coverage)
 		dump_coverage();
+
+	if (print_elog)
+		dump_elog();
 
 	if (print_list)
 		dump_cbmem_toc();
