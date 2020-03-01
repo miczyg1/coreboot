@@ -639,14 +639,14 @@ static uint8_t send_mbox_msg_with_interrupt(uint8_t mbox_message)
 	return 0;
 }
 
-static void ec_check_mbox_and_int_status(uint8_t int_src)
+static void ec_check_mbox_and_int_status(uint8_t int_src, uint8_t mbox_msg)
 {
 	uint8_t val;
 
 	val = sch5545_emi_ec2h_mbox_read();
-	if (val != 0x01)
-		printk(BIOS_INFO,"EC2H mailbox should return 0x01, is %02x\n",
-		       val);
+	if (val != mbox_msg)
+		printk(BIOS_INFO,"EC2H mailbox should return %02x, is %02x\n",
+		       mbox_msg, val);
 
 	val = sch5545_emi_get_int_src_low();
 	if (val != int_src)
@@ -750,7 +750,7 @@ uint16_t sch5545_get_ec_fw_version(void)
 	uint16_t ec_fw_version;
 	int i;
 
-	ec_check_mbox_and_int_status(0x20);
+	ec_check_mbox_and_int_status(0x20, 0x01);
 
 	for (i = 0; i < ARRAY_SIZE(ec_fwver_check_seq); i++ ) {
 		val = ec_fwver_check_seq[i].val;
@@ -777,12 +777,13 @@ void sch5545_ec_finalize(void)
 	uint8_t val;
 	int i;
 
+	val = 0x00;
 	ec_write_read_reg_int_disabled(2, 0x02d0, &val, 0x4c);
 	ec_write_read_reg_int_disabled(2, 0x059e, &val, 0x11);
 
 	val = sch5545_emi_get_int_src_low();
-	if (!val)
-		printk(BIOS_INFO,"EC INT SRC should be 0, is %02x\n", val);
+	if (val != 0)
+		printk(BIOS_INFO, "EC INT SRC should be 0, is %02x\n", val);
 	sch5545_emi_set_int_src_low(val | 8);
 
 	val = 0x98;
@@ -805,7 +806,7 @@ void sch5545_ec_finalize(void)
 	uint32_t data[] = { 0xc8111401, 0x00058000 };
 	ec_write_32_bulk_with_int(0x8004, data, ARRAY_SIZE(data));
 
-	ec_check_mbox_and_int_status(0x00);
+	ec_check_mbox_and_int_status(0x00, 0x02);
 
 	for (i = 0; i < ARRAY_SIZE(ec_final_seq); i++ ) {
 		val = ec_final_seq[i].val;

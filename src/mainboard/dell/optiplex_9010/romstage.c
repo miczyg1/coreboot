@@ -18,6 +18,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <cf9_reset.h>
 #include <lib.h>
 #include <timestamp.h>
 #include <arch/acpi.h>
@@ -114,6 +115,7 @@ void mainboard_early_init(int s3resume)
 	sch5545_ec_fan_spin_up();
 
 	ec_fw_version = sch5545_get_ec_fw_version();
+	printk(BIOS_DEBUG, "SCH5545 EC firmware version %04x\n", ec_fw_version);
 
 	if (ec_fw_version == 0x0000) {
 		printk(BIOS_INFO, "SCH5545 EC is not functional, probably due"
@@ -129,6 +131,14 @@ void mainboard_early_init(int s3resume)
 					 " maximum speed\n");
 		} else {
 			printk(BIOS_INFO, "EC firmware update success\n");
+			/*
+			 * The vendor BIOS does a full reset after EC firmware
+			 * update. Most likely becasue the fans are adapting
+			 * very slowly after automatic fan control is enabled.
+			 * This make huge noise. To avoid it, also do the full
+			 * reset. On next boot, it will not be necessary.
+			 *  */
+			do_full_reset();
 		}
 	}
 
@@ -177,61 +187,9 @@ void mainboard_early_init(int s3resume)
 
 void mainboard_config_superio(void)
 {
-	// return;
-
-	// pnp_devfn_t dev;
-	// uint8_t val;
-
 	sch5545_early_init(0x2e);
 	sch5545_emi_disable_interrupts();
 	sch5545_enable_uart(0x2e, 0);
-
-	// dev = PNP_DEV(0x2e, SCH5545_LDN_LPC_IF);
-
-	// sch5545_enter_conf_state(dev);
-	// pnp_set_logical_device(dev);
-
-	// /* Setup other registers as in official firmware.
-	//  * We do it here, because this SIO breaks our device model.
-	//  * Some settings guessed from dumps and SCH5627 datasheet.
-	//  */
-
-	// /* IRQ1 to KBC */
-	// pnp_write_config(dev, SCH5545_IRQ_BASE + 1, SCH5545_IRQ_KBD); 
-
-	// /* IRQ2 (nSMI) to Embedded Memory Interface (EC) 
-	//  * and select second interrupt signal
-	//  */
-	// pnp_write_config(dev, SCH5545_IRQ_BASE + 2,
-	// 		 SCH5545_IRQ_EMI_IRQ_SOURCE);
-
-	// /* IRQ12 to KBC and select second interrupt signal for mouse */
-	// pnp_write_config(dev, SCH5545_IRQ_BASE + 12, SCH5545_IRQ_MOUSE);
-
-	// /* Set up BAR for EMI to 0x0a40.	
-	//  * Flipped due to different register layout on SMSC SuperIO
-	//  */
-	// pnp_set_iobase(dev, SCH5545_BAR_EM_IF + 2, 0x400a);
-	// val = pnp_read_config(dev, SCH5545_BAR_EM_IF + 1);
-	// val |= 0x80; /* set valid */
-	// pnp_write_config(dev, SCH5545_BAR_EM_IF + 1, val);
-
-	// /* Set up BAR for KBC, default is 0x60, so just set it as valid */
-	// val = pnp_read_config(dev, SCH5545_BAR_KBC + 1);
-	// val |= 0x80; /* set valid */
-	// pnp_write_config(dev, SCH5545_BAR_KBC + 1, val);
-
-	// /* enable KBC */
-	// dev = PNP_DEV(0x2e, SCH5545_LDN_KBC);
-	// pnp_set_logical_device(dev);
-	// pnp_set_enable(dev, 1);
-
-	// /* set LED color to green and on */
-	// val = SCH5545_LED_COLOR_GREEN | SCH5545_LED_BLINK_ON |
-	//       SCH5545_LED_CODE_FETCH;
-	// outb(val, SCH5545_RUNTIME_REG_BASE + SCH5545_RR_LED);
-
-	// sch5545_exit_conf_state(dev);
 }
 
 void mainboard_get_spd(spd_raw_data *spd, bool id_only)
