@@ -15,5 +15,6 @@
 
 smm-y += smihandler.c
 romstage-y += gpio.c
+romstage-y += sch5545_ec.c
 
 ramstage-$(CONFIG_MAINBOARD_USE_LIBGFXINIT) += gma-mainboard.ads

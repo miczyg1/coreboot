@@ -50,6 +50,7 @@ void mainboard_smi_gpi(u32 gpi_sts)
 {
 	printk(BIOS_SPEW, "%s: gpi_sts: %08x\n", __func__, gpi_sts);
 	dump_pmbase();
+	/* intrusion switch connected to INTRUDER# on CPU/PCH */
 }
 
 int mainboard_smi_apmc(u8 data)
