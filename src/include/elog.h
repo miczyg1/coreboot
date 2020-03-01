@@ -213,8 +213,6 @@ struct elog_event_mem_cache_update {
 #define ELOG_EC_DEVICE_EVENT_TRACKPAD       0x01
 #define ELOG_EC_DEVICE_EVENT_DSP            0x02
 #define ELOG_EC_DEVICE_EVENT_WIFI           0x03
-#define ELOG_EC_DEVICE_EVENT_CASE_OPEN      0x04
-#define ELOG_EC_DEVICE_EVENT_CASE_CLOSE     0x05
 
 /* S0ix sleep/wake */
 #define ELOG_TYPE_S0IX_ENTER              0xaf
@@ -227,6 +225,8 @@ struct elog_event_mem_cache_update {
 
 /* Cr50 reset to enable TPM */
 #define ELOG_TYPE_CR50_NEED_RESET         0xb2
+#define ELOG_TYPE_CASE_OPEN               0xb3
+#define ELOG_TYPE_CASE_CLOSE              0xb4
 
 struct elog_event_extended_event {
 	u8 event_type;
