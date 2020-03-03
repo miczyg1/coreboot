@@ -28,6 +28,42 @@
 
 #include "sch5545.h"
 
+int sch5545_get_gpio(uint8_t sio_port, uint8_t gpio_bank, uint8_t gpio_num)
+{
+	struct device *dev;
+	uint16_t runtime_reg_base;
+
+	/*
+	 * GPIOs are divided into banks of 8 GPIOs (kind of). Each group starts
+	 * at decimal base, i.e. 8 GPIOs from GPIO000, 8 GPIOs from GPIO010,
+	 * etc., up to GPIO071 and GPIO072 which are an exception (only two
+	 * gpios in the bank 7).
+	 */
+	if (gpio_num > 7)
+		return -1;
+	else if (gpio_bank == 7 && gpio_num > 1)
+		return -1;
+	else if (gpio_bank > 7)
+		return -1;
+
+	dev = dev_find_slot_pnp(sio_port, SCH5545_LDN_LPC_IF);
+	pnp_enter_conf_mode(dev);
+	pnp_set_logical_device(dev);
+	
+	runtime_reg_base = pnp_read_config(dev, SCH5545_BAR_RUNTIME_REG + 2);
+	runtime_reg_base |= 
+			pnp_read_config(dev, SCH5545_BAR_RUNTIME_REG + 3) << 8;
+	
+	pnp_exit_conf_mode(dev);
+
+	if (runtime_reg_base == 0)
+		return -1;
+
+	outb(gpio_bank * 8 + gpio_num, runtime_reg_base + SCH5545_RR_GPIO_SEL);
+
+	return inb(runtime_reg_base + SCH5545_RR_GPIO_READ) & 1;
+}
+
 static void sch5545_set_led_on(u16 runtime_reg_base)
 {
 	u8 val = SCH5545_LED_BLINK_ON | SCH5545_LED_COLOR_GREEN |

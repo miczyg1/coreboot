@@ -111,7 +111,7 @@ void sch5545_early_init(unsigned port)
 	pnp_set_logical_device(dev);
 	pnp_set_enable(dev, 1);
 
-	/* Clear pending adn enable PMEs */
+	/* Clear pending and enable PMEs */
 	outb(0x01, SCH5545_RUNTIME_REG_BASE);
 	outb(0x01, SCH5545_RUNTIME_REG_BASE + 1);
 
@@ -140,6 +140,7 @@ void sch5545_enable_uart(unsigned port, unsigned uart_no)
 
 	/* configure serial 1 / UART 1 */
 	dev = PNP_DEV(port, SCH5545_LDN_LPC_IF);
+	pnp_enter_conf_state(dev);
 	pnp_set_logical_device(dev);
 	/* Set UART BAR mask to 0x07 (8 registers) */
 	pnp_write_config(dev, SCH5545_BAR_UART1 + (4 * uart_no), 0x07);
@@ -158,4 +159,40 @@ void sch5545_enable_uart(unsigned port, unsigned uart_no)
 			 SCH5545_UART_POWER_VCC);
 
 	pnp_exit_conf_state(dev);
+}
+
+int sch5545_get_gpio(uint8_t sio_port, uint8_t gpio_bank, uint8_t gpio_num)
+{
+	pnp_devfn_t dev;
+	uint16_t runtime_reg_base;
+
+	/*
+	 * GPIOs are divided into banks of 8 GPIOs (kind of). Each group starts
+	 * at decimal base, i.e. 8 GPIOs from GPIO000, 8 GPIOs from GPIO010,
+	 * etc., up to GPIO071 and GPIO072 which are an exception (only two
+	 * gpios in the bank 7).
+	 */
+	if (gpio_num > 7)
+		return -1;
+	else if (gpio_bank == 7 && gpio_num > 1)
+		return -1;
+	else if (gpio_bank > 7)
+		return -1;
+
+	dev = PNP_DEV(sio_port, SCH5545_LDN_LPC_IF);
+	pnp_enter_conf_state(dev);
+	pnp_set_logical_device(dev);
+	
+	runtime_reg_base = pnp_read_config(dev, SCH5545_BAR_RUNTIME_REG + 2);
+	runtime_reg_base |= 
+			pnp_read_config(dev, SCH5545_BAR_RUNTIME_REG + 3) << 8;
+	
+	pnp_exit_conf_state(dev);
+
+	if (runtime_reg_base == 0)
+		return -1;
+
+	outb(gpio_bank * 8 + gpio_num, runtime_reg_base + SCH5545_RR_GPIO_SEL);
+
+	return inb(runtime_reg_base + SCH5545_RR_GPIO_READ) & 1;
 }

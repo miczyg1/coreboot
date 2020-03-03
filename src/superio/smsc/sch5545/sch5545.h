@@ -300,5 +300,6 @@
 void sch5545_early_init(unsigned port);
 void sch5545_enable_uart(unsigned port, unsigned uart_no);
 void sch5545_set_led(unsigned runtime_reg_base, unsigned color, uint16_t blink);
+int sch5545_get_gpio(uint8_t sio_port, uint8_t gpio_bank, uint8_t gpio_num);
 
 #endif /* SUPERIO_SCH_5545_H */
