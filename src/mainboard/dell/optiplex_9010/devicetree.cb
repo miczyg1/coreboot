@@ -105,6 +105,31 @@ chip northbridge/intel/sandybridge
 				chip drivers/pc80/tpm
 					device pnp 0c31.0 on end
 				end
+				chip superio/smsc/sch5545
+					device pnp 2e.c on # LPC
+						io 0x60 = 0x2e
+					end
+					device pnp 2e.0 on # EMI
+						io 0x60 = 0xa40
+						irq 0x70 = 2
+					end
+					device pnp 2e.1 on # KBC/PS2M
+						io 0x60 = 0x60
+						irq 0x70 = 1
+						irq 0x72 = 12
+					end
+					device pnp 2e.7 on # UART1
+						io 0x60 = 0x3f8
+						irq 0x70 = 4
+						irq 0xf0 = 0x02
+					end
+					device pnp 2e.8 off end # UART2
+					device pnp 2e.a on # Runtime registers
+						io 0x60 = 0xa00
+					end
+					device pnp 2e.b off end # Floppy
+					device pnp 2e.11 off end # PP
+				end
 			end
 			device pci 1f.2 on # SATA Controller 1
 				subsystemid 0x1028 0x052c

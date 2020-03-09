@@ -18,7 +18,6 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <cf9_reset.h>
 #include <lib.h>
 #include <timestamp.h>
 #include <arch/acpi.h>
@@ -52,7 +51,7 @@ void pch_enable_lpc(void)
 }
 
 void mainboard_rcba_config(void)
-{	
+{
 }
 
 const struct southbridge_usb_port mainboard_usb_ports[] = {
@@ -90,7 +89,7 @@ void mainboard_early_init(int s3resume)
 	uint8_t val;
 	uint16_t ec_fw_version;
 
-	dev = PNP_DEV(0x2e, SCH5545_LDN_LPC_IF);
+	dev = PNP_DEV(0x2e, SCH5545_LDN_LPC);
 
 	sch5545_enter_conf_state(dev);
 	pnp_set_logical_device(dev);
@@ -117,70 +116,11 @@ void mainboard_early_init(int s3resume)
 	ec_fw_version = sch5545_get_ec_fw_version();
 	printk(BIOS_DEBUG, "SCH5545 EC firmware version %04x\n", ec_fw_version);
 
-	if (ec_fw_version == 0x0000) {
-		printk(BIOS_INFO, "SCH5545 EC is not functional, probably due"
-				  " to power failure\n");
-		printk(BIOS_INFO, "Uploading EC firmware to SCH5545\n");
-
-		sch5545_update_ec_firmware();
-		ec_fw_version = sch5545_get_ec_fw_version();
-
-		if (ec_fw_version != 0x0318) {
-			printk(BIOS_ERR, "EC firmware update failed!\n");
-			printk(BIOS_ERR, "The fans will keep running at"
-					 " maximum speed\n");
-		} else {
-			printk(BIOS_INFO, "EC firmware update success\n");
-			/*
-			 * The vendor BIOS does a full reset after EC firmware
-			 * update. Most likely becasue the fans are adapting
-			 * very slowly after automatic fan control is enabled.
-			 * This make huge noise. To avoid it, also do the full
-			 * reset. On next boot, it will not be necessary.
-			 *  */
-			do_full_reset();
-		}
-	}
-
-	sch5545_ec_finalize();
+	sch5545_update_ec_firmware(ec_fw_version);
 
 	printk(BIOS_DEBUG, "EC init complete.\n");
 
-	dev = PNP_DEV(0x2e, SCH5545_LDN_LPC_IF);
-
-	sch5545_enter_conf_state(dev);
-	pnp_set_logical_device(dev);
-
-	for (val = 0x40; val < 0x84; val++)
-		printk(BIOS_DEBUG, "SIO %02x: %02x\n", val,
-					pnp_read_config(dev, val));
-
-	dev = PNP_DEV(0x2e, SCH5545_LDN_UART1);
-	printk(BIOS_DEBUG, "SIO %02x: %02x\n", 0x30,
-					pnp_read_config(dev, 0x30));
-					
-	printk(BIOS_DEBUG, "Dev_dis %02x: %02x\n", val,
-					inb(SCH5545_RUNTIME_REG_BASE + SCH5545_RR_DEV_DISABLE));
-	sch5545_exit_conf_state(dev);
-
 	sch5545_enable_uart(0x2e, 0);
-	
-	dev = PNP_DEV(0x2e, SCH5545_LDN_LPC_IF);
-
-	sch5545_enter_conf_state(dev);
-	pnp_set_logical_device(dev);
-
-	for (val = 0x40; val < 0x84; val++)
-		printk(BIOS_DEBUG, "SIO %02x: %02x\n", val,
-					pnp_read_config(dev, val));
-
-	dev = PNP_DEV(0x2e, SCH5545_LDN_UART1);
-	printk(BIOS_DEBUG, "SIO %02x: %02x\n", 0x30,
-					pnp_read_config(dev, 0x30));
-					
-	printk(BIOS_DEBUG, "Dev_dis %02x: %02x\n", val,
-					inb(SCH5545_RUNTIME_REG_BASE + SCH5545_RR_DEV_DISABLE));
-	sch5545_exit_conf_state(dev);
 }
 
 
@@ -189,7 +129,6 @@ void mainboard_config_superio(void)
 {
 	sch5545_early_init(0x2e);
 	sch5545_emi_disable_interrupts();
-	sch5545_enable_uart(0x2e, 0);
 }
 
 void mainboard_get_spd(spd_raw_data *spd, bool id_only)
