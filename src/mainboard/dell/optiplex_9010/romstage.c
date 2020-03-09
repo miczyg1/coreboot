@@ -118,6 +118,9 @@ void mainboard_early_init(int s3resume)
 
 	sch5545_update_ec_firmware(ec_fw_version);
 
+	/* FIXME */
+	sch5545_ec_finalize();
+
 	printk(BIOS_DEBUG, "EC init complete.\n");
 
 	sch5545_enable_uart(0x2e, 0);

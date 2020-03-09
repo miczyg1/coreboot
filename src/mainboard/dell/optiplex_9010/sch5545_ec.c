@@ -806,7 +806,7 @@ void sch5545_update_ec_firmware(uint16_t ec_version)
 		status = send_mbox_msg_simple(0x04);
 		status += send_mbox_msg_simple(0x06);
 
-		if (!status) {
+		if (status != 2) {
 			printk(BIOS_WARNING, "EC firmware update failed!\n");
 		}
 

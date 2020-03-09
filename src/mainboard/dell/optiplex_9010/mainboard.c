@@ -22,9 +22,6 @@
 #include <southbridge/intel/bd82x6x/pch.h>
 #include <southbridge/intel/common/gpio.h>
 #include <superio/smsc/sch5545/sch5545.h>
-#include <superio/smsc/sch5545/sch5545_emi.h>
-
-#include "sch5545_ec.h"
 
 #define SIO_PORT				0x2e
 
@@ -176,10 +173,6 @@ static void mainboard_final(void *chip_info)
 	pci_write_config8(dev, PIRQF_ROUT, pirq_routing);
 	pci_write_config8(dev, PIRQG_ROUT, pirq_routing);
 	pci_write_config8(dev, PIRQH_ROUT, pirq_routing);
-
-	/* FIXME */
-	//sch5545_emi_init(SIO_PORT);
-	//sch5545_ec_finalize();
 
 	pin_sts = sch5545_get_gpio(SIO_PORT, SIO_GPIO_FP_CBL_DET_L);
 	
