@@ -25,7 +25,7 @@
 #define SCH5545_LDN_UART2			0x08
 #define SCH5545_LDN_RR				0x0a	/* Runtime Registers */
 #define SCH5545_LDN_FDC				0x0b
-#define SCH5545_LDN_LPC_IF			0x0c	/* LPC Interface */
+#define SCH5545_LDN_LPC				0x0c	/* LPC Interface */
 #define SCH5545_LDN_PP				0x11
 #define SCH5545_LDN_GCONF			0x3f	/* Global Config */
 
@@ -300,6 +300,6 @@
 void sch5545_early_init(unsigned port);
 void sch5545_enable_uart(unsigned port, unsigned uart_no);
 void sch5545_set_led(unsigned runtime_reg_base, unsigned color, uint16_t blink);
-int sch5545_get_gpio(uint8_t sio_port, uint8_t gpio_bank, uint8_t gpio_num);
+int sch5545_get_gpio(uint8_t sio_port, uint8_t gpio);
 
 #endif /* SUPERIO_SCH_5545_H */

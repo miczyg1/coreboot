@@ -87,14 +87,14 @@ void sch5545_early_init(unsigned port)
 
 
 	/* enable lpc if */
-	dev = PNP_DEV(port, SCH5545_LDN_LPC_IF);
+	dev = PNP_DEV(port, SCH5545_LDN_LPC);
 	pnp_set_logical_device(dev);
 	pnp_set_enable(dev, 1);
 	/* Set LPC BAR mask */
 	pnp_write_config(dev, SCH5545_BAR_LPC_IF, 0x01);
 	/* BAR valid, Frame/LDN = 0xc */
 	pnp_write_config(dev, SCH5545_BAR_LPC_IF + 1,
-			 SCH5545_LDN_LPC_IF | 0x80);
+			 SCH5545_LDN_LPC | 0x80);
 	set_iobase(dev, SCH5545_BAR_LPC_IF, port);
 
 	/* Enable runtime registers */
@@ -120,7 +120,7 @@ void sch5545_early_init(unsigned port)
 			SCH5545_LED_BLINK_ON);
 
 	/* Configure EMI */
-	dev = PNP_DEV(port, SCH5545_LDN_LPC_IF);
+	dev = PNP_DEV(port, SCH5545_LDN_LPC);
 	pnp_set_logical_device(dev);
 	/* EMI BAR has 11 registers, but vendor sets the mask to 0xf */
 	pnp_write_config(dev, SCH5545_BAR_EM_IF, 0x0f);
@@ -139,7 +139,7 @@ void sch5545_enable_uart(unsigned port, unsigned uart_no)
 		return;
 
 	/* configure serial 1 / UART 1 */
-	dev = PNP_DEV(port, SCH5545_LDN_LPC_IF);
+	dev = PNP_DEV(port, SCH5545_LDN_LPC);
 	pnp_enter_conf_state(dev);
 	pnp_set_logical_device(dev);
 	/* Set UART BAR mask to 0x07 (8 registers) */
@@ -161,11 +161,14 @@ void sch5545_enable_uart(unsigned port, unsigned uart_no)
 	pnp_exit_conf_state(dev);
 }
 
-int sch5545_get_gpio(uint8_t sio_port, uint8_t gpio_bank, uint8_t gpio_num)
+int sch5545_get_gpio(uint8_t sio_port, uint8_t gpio)
 {
 	pnp_devfn_t dev;
 	uint16_t runtime_reg_base;
+	uint8_t gpio_bank, gpio_num;
 
+	gpio_bank = gpio / 10;
+	gpio_num = gpio % 10;
 	/*
 	 * GPIOs are divided into banks of 8 GPIOs (kind of). Each group starts
 	 * at decimal base, i.e. 8 GPIOs from GPIO000, 8 GPIOs from GPIO010,
@@ -179,7 +182,7 @@ int sch5545_get_gpio(uint8_t sio_port, uint8_t gpio_bank, uint8_t gpio_num)
 	else if (gpio_bank > 7)
 		return -1;
 
-	dev = PNP_DEV(sio_port, SCH5545_LDN_LPC_IF);
+	dev = PNP_DEV(sio_port, SCH5545_LDN_LPC);
 	pnp_enter_conf_state(dev);
 	pnp_set_logical_device(dev);
 	

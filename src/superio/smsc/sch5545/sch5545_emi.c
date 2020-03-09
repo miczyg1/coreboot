@@ -45,10 +45,10 @@ uint16_t sch5545_read_emi_bar(uint8_t sio_port)
 	uint16_t bar;
 
 #ifdef __SIMPLE_DEVICE__
-	pnp_devfn_t lpcif = PNP_DEV(sio_port, SCH5545_LDN_LPC_IF);
+	pnp_devfn_t lpcif = PNP_DEV(sio_port, SCH5545_LDN_LPC);
 	sch5545_enter_conf_state(lpcif);
 #else
-	struct device *lpcif = dev_find_slot_pnp(sio_port, SCH5545_LDN_LPC_IF);
+	struct device *lpcif = dev_find_slot_pnp(sio_port, SCH5545_LDN_LPC);
 	if (!lpcif)
 		return 0;
 	pnp_enter_conf_mode_55(lpcif);

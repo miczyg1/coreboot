@@ -28,11 +28,14 @@
 
 #include "sch5545.h"
 
-int sch5545_get_gpio(uint8_t sio_port, uint8_t gpio_bank, uint8_t gpio_num)
+int sch5545_get_gpio(uint8_t sio_port, uint8_t gpio)
 {
 	struct device *dev;
 	uint16_t runtime_reg_base;
+	uint8_t gpio_bank, gpio_num;
 
+	gpio_bank = gpio / 10;
+	gpio_num = gpio % 10;
 	/*
 	 * GPIOs are divided into banks of 8 GPIOs (kind of). Each group starts
 	 * at decimal base, i.e. 8 GPIOs from GPIO000, 8 GPIOs from GPIO010,
@@ -46,7 +49,14 @@ int sch5545_get_gpio(uint8_t sio_port, uint8_t gpio_bank, uint8_t gpio_num)
 	else if (gpio_bank > 7)
 		return -1;
 
-	dev = dev_find_slot_pnp(sio_port, SCH5545_LDN_LPC_IF);
+	dev = dev_find_slot_pnp(sio_port, SCH5545_LDN_LPC);
+
+	if (!dev) {
+		printk(BIOS_ERR, "%s: ERROR: LPC interface LDN not present."
+		       "Check the devicetree!\n", __func__);
+		return -1;
+	}
+
 	pnp_enter_conf_mode(dev);
 	pnp_set_logical_device(dev);
 	
@@ -64,26 +74,25 @@ int sch5545_get_gpio(uint8_t sio_port, uint8_t gpio_bank, uint8_t gpio_num)
 	return inb(runtime_reg_base + SCH5545_RR_GPIO_READ) & 1;
 }
 
-static void sch5545_set_led_on(u16 runtime_reg_base)
-{
-	u8 val = SCH5545_LED_BLINK_ON | SCH5545_LED_COLOR_GREEN |
-		 SCH5545_LED_CODE_FETCH;
-	outb(val, runtime_reg_base + SCH5545_RR_LED);
-}
-
 static void sch5545_init(struct device *dev)
 {
 	if (!dev->enabled) {
 		return;
 	}
 
-	switch (dev->path.pnp.device) {
-		case SCH5545_LDN_KBC:
-			pc_keyboard_init(NO_AUX_DEVICE);
-			break;
-		case SCH5545_LDN_RR:
-			sch5545_set_led_on(SCH5545_RUNTIME_REG_BASE);
-			break;
+	switch (dev->path.pnp.device)
+	{
+	case SCH5545_LDN_KBC:
+		pc_keyboard_init(NO_AUX_DEVICE);
+		break;
+	case SCH5545_LDN_LPC:
+		pnp_enter_conf_mode(dev);
+		pnp_set_logical_device(dev);
+		/* Enable SERIRQ */
+		pnp_write_config(dev, 0x24, pnp_read_config(dev, 0x24) | 0x04);
+		pnp_exit_conf_mode(dev);
+		break;
+	
 	}
 }
 
@@ -91,34 +100,62 @@ static void sch5545_set_iobase(struct device *dev, u8 index, u16 iobase)
 {
 	u8 val;
 	struct device *lpc_if;
+	u8 iobase_reg = 0;
+	
+	lpc_if = dev_find_slot_pnp(dev->path.pnp.port, SCH5545_LDN_LPC);
 
-	/* All IO base addresses are configured via LPC LDN */
-	lpc_if = (struct device *) malloc(sizeof(struct device *));
-	lpc_if->path.type = DEVICE_PATH_PNP;
-	lpc_if->path.pnp.device = SCH5545_LDN_LPC_IF;
-	lpc_if->path.pnp.port = dev->path.pnp.port;	
-	pnp_set_logical_device(dev);
+	if (!lpc_if) {
+		printk(BIOS_ERR, "ERROR: %s LPC interface LDN not present."
+		       "Check the devicetree!\n", dev_path(dev));
+		return;
+	}
+
+	switch (dev->path.pnp.device)
+	{
+	case SCH5545_LDN_EMI:	iobase_reg = SCH5545_BAR_EM_IF;		break;
+	case SCH5545_LDN_KBC:	iobase_reg = SCH5545_BAR_KBC;		break;
+	case SCH5545_LDN_UART1:	iobase_reg = SCH5545_BAR_UART1;		break;
+	case SCH5545_LDN_UART2:	iobase_reg = SCH5545_BAR_UART2;		break;
+	case SCH5545_LDN_RR:	iobase_reg = SCH5545_BAR_RUNTIME_REG;	break;
+	case SCH5545_LDN_FDC:	iobase_reg = SCH5545_BAR_FLOPPY;	break;
+	case SCH5545_LDN_LPC:	iobase_reg = SCH5545_BAR_LPC_IF;	break;
+	case SCH5545_LDN_PP: 	iobase_reg = SCH5545_BAR_PARPORT;	break;
+	default: return;
+	}
+
+	pnp_set_logical_device(lpc_if);
 
 	/* Flip the bytes in IO base, LSB goes first */
-	pnp_write_config(lpc_if, index + 0, iobase & 0xff);
-	pnp_write_config(lpc_if, index + 1, (iobase >> 8) & 0xff);
+	pnp_write_config(lpc_if, iobase_reg + 2, iobase & 0xff);
+	pnp_write_config(lpc_if, iobase_reg + 3, (iobase >> 8) & 0xff);
 
 	/* set valid */
-	val = pnp_read_config(lpc_if, index - 1);
+	val = pnp_read_config(lpc_if, iobase_reg + 1);
 	val |= 0x80;
-	pnp_write_config(lpc_if, index - 1 , val);
+	pnp_write_config(lpc_if, iobase_reg + 1 , val);
+
+	pnp_set_logical_device(dev);
 }
 
 static void sch5545_set_irq(struct device *dev, u8 index, u8 irq)
 {
-	struct device *lpc_if;
 	u8 select_bit = 0;
+	struct device *lpc_if;
 
-	/* All IRQs are programmed via LPC LDN */
-	lpc_if = (struct device *) malloc(sizeof(struct device *));
-	lpc_if->path.type = DEVICE_PATH_PNP;
-	lpc_if->path.pnp.device = SCH5545_LDN_LPC_IF;
-	lpc_if->path.pnp.port = dev->path.pnp.port;
+	/* In case it is not the IRQ, write misc register directly */
+	if (index >= PNP_IDX_MSC0) {
+		pnp_write_config(dev, index, irq);
+		return;
+	}
+	
+	lpc_if = dev_find_slot_pnp(dev->path.pnp.port, SCH5545_LDN_LPC);
+
+	if (!lpc_if) {
+		printk(BIOS_ERR, "ERROR: %s LPC interface LDN not present."
+		       "Check the devicetree!\n", dev_path(dev));
+		return;
+	}
+	
 	pnp_set_logical_device(lpc_if);
 
 	/* 
@@ -157,9 +194,8 @@ static void sch5545_set_irq(struct device *dev, u8 index, u8 irq)
 	 * the IRQ. Ignore the index offset and choose register based on IRQ
 	 * number counting from IRQ base.
 	 */
-	pnp_write_config(dev, SCH5545_IRQ_BASE + irq, dev->path.pnp.device |
+	pnp_write_config(lpc_if, SCH5545_IRQ_BASE + irq, dev->path.pnp.device |
 						      select_bit);
-
 	pnp_set_logical_device(dev);
 }
 
@@ -173,10 +209,14 @@ static void sch5545_set_drq(struct device *dev, u8 index, u8 drq)
 	}
 
 	/* DMA is programmed via LPC LDN */
-	lpc_if = (struct device *) malloc(sizeof(struct device *));
-	lpc_if->path.type = DEVICE_PATH_PNP;
-	lpc_if->path.pnp.device = SCH5545_LDN_LPC_IF;
-	lpc_if->path.pnp.port = dev->path.pnp.port;
+	lpc_if = dev_find_slot_pnp(dev->path.pnp.port, SCH5545_LDN_LPC);
+
+	if (!lpc_if) {
+		printk(BIOS_ERR, "ERROR: %s LPC interface LDN not present."
+		       "Check the devicetree!\n", dev_path(dev));
+		return;
+	}
+	
 	pnp_set_logical_device(lpc_if);
 
 	/* 
@@ -259,7 +299,7 @@ static struct pnp_info pnp_dev_info[] = {
 	{ &ops, SCH5545_LDN_EMI, PNP_IO0 | PNP_IRQ0 | PNP_IRQ1 , 0x0ff0, },
 	{ &ops, SCH5545_LDN_KBC, PNP_IO0 | PNP_IRQ0 | PNP_IRQ1 | PNP_MSC0 |
 				 PNP_MSC1,
-	  0x0ffc },
+	  0x0fff },
 	{ &ops, SCH5545_LDN_UART1, PNP_IO0 | PNP_IRQ0 | PNP_MSC0, 0x0ff8, },
 	{ &ops, SCH5545_LDN_UART2, PNP_IO0 | PNP_IRQ0 | PNP_MSC0, 0x0ff8, },
 	{ &ops, SCH5545_LDN_RR, PNP_IO0 | PNP_IRQ0 | PNP_IRQ1 | PNP_MSC0,
@@ -268,7 +308,7 @@ static struct pnp_info pnp_dev_info[] = {
 				 PNP_MSC1 | PNP_MSC2 | PNP_MSC3 | PNP_MSC4 |
 				 PNP_MSC5,
 	  0x0ff8, },
-	{ &ops, SCH5545_LDN_LPC_IF, PNP_IO0, 0x0ffe },
+	{ &ops, SCH5545_LDN_LPC, PNP_IO0, 0x0ffe },
 	{ &ops, SCH5545_LDN_PP, PNP_IO0 | PNP_IRQ0 | PNP_DRQ0 | PNP_MSC0 |
 				PNP_MSC1, 0x0ff8 },
 };
