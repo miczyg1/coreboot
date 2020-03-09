@@ -22,6 +22,11 @@
 #include <southbridge/intel/bd82x6x/pch.h>
 #include <southbridge/intel/common/gpio.h>
 #include <superio/smsc/sch5545/sch5545.h>
+#include <superio/smsc/sch5545/sch5545_emi.h>
+
+#include "sch5545_ec.h"
+
+#define SIO_PORT				0x2e
 
 #define GPIO_CHASSIS_ID0			1
 #define GPIO_VGA_CABLE_DET_L			4
@@ -139,7 +144,6 @@ static void mainboard_enable(struct device *dev)
 		printk(BIOS_WARNING, "Check the front panel cable!\n");
 	}
 
-	
 	if (!get_gpio(GPIO_INTRUDER_CABLE_DET_L)) {
 		printk(BIOS_DEBUG, "Intruder cable connected\n");
 	} else {
@@ -155,30 +159,11 @@ static void mainboard_enable(struct device *dev)
 		printk(BIOS_WARNING, "Front USB 3.0 ports will not work!\n");
 		printk(BIOS_WARNING, "Check the front USB 3.0 cable!\n");
 	}
-
-	pin_sts = sch5545_get_gpio(0x2e, SIO_GPIO_FP_CBL_DET_L / 10,
-				   SIO_GPIO_FP_CBL_DET_L % 8);
-	
-	if (pin_sts != -1) {
-		if (pin_sts) {
-			printk(BIOS_WARNING, "Power switch cable not"
-			       " connected!\n");
-			printk(BIOS_WARNING, "Check power switch cable!\n");
-		} else {
-			printk(BIOS_DEBUG, "Power switch cable connected\n");
-		}
-	}
-
-	pin_sts = sch5545_get_gpio(0x2e, SIO_GPIO_PCSPKR_DET_L / 10,
-				   SIO_GPIO_PCSPKR_DET_L % 8);
-	
-	if (pin_sts != -1)
-		printk(BIOS_DEBUG, "Internal chassis PC speaker %sconnected\n",
-		       pin_sts ? "not " : "");
 }
 
 static void mainboard_final(void *chip_info)
 {
+	int pin_sts;
 	struct device *dev = pcidev_on_root(0x1f, 0);
 	const u8 pirq_routing = 11;
 
@@ -191,6 +176,28 @@ static void mainboard_final(void *chip_info)
 	pci_write_config8(dev, PIRQF_ROUT, pirq_routing);
 	pci_write_config8(dev, PIRQG_ROUT, pirq_routing);
 	pci_write_config8(dev, PIRQH_ROUT, pirq_routing);
+
+	/* FIXME */
+	//sch5545_emi_init(SIO_PORT);
+	//sch5545_ec_finalize();
+
+	pin_sts = sch5545_get_gpio(SIO_PORT, SIO_GPIO_FP_CBL_DET_L);
+	
+	if (pin_sts != -1) {
+		if (pin_sts) {
+			printk(BIOS_WARNING, "Power switch cable not"
+			       " connected!\n");
+			printk(BIOS_WARNING, "Check power switch cable!\n");
+		} else {
+			printk(BIOS_DEBUG, "Power switch cable connected\n");
+		}
+	}
+
+	pin_sts = sch5545_get_gpio(SIO_PORT, SIO_GPIO_PCSPKR_DET_L);
+	
+	if (pin_sts != -1)
+		printk(BIOS_DEBUG, "Internal chassis PC speaker %sconnected\n",
+		       pin_sts ? "not " : "");
 }
 
 struct chip_operations mainboard_ops = {

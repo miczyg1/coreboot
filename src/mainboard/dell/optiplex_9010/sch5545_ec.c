@@ -14,6 +14,7 @@
  * GNU General Public License for more details.
  */
 
+#include <cf9_reset.h>
 #include <arch/io.h>
 #include <console/console.h>
 #include <superio/smsc/sch5545/sch5545.h>
@@ -412,9 +413,7 @@ static const uint32_t ec_fw[] = {
 	0x00803c00, 0x10c0224a, 0xcfaf0385, 0x1100234a,
 };
 
-static const struct ec_reg_val_expected ec_fwver_check_seq[] = {
-	{ 2, 0x00, 0x00cb, 0x00 },
-	{ 2, 0x00, 0x00b8, 0x01 },
+static const struct ec_reg_val_expected ec_hwm_init_seq[] = {
 	{ 3, 0xa0, 0x02fc, 0x00 },
 	{ 3, 0x32, 0x02fd, 0x00 },
 	{ 3, 0x77, 0x0005, 0x00 },
@@ -544,80 +543,105 @@ static const struct ec_reg_val_expected ec_final_seq[] = {
 	{ 3, 0x08, 0x01b1, 0x00 },
 	{ 3, 0x97, 0x01be, 0x00 },
 	{ 3, 0x68, 0x0280, 0x00 },
-	{ 3, 0x10, 0x0281, 0x00 },
+	{ 2, 0x00, 0x002c, 0xba },
+	{ 2, 0x00, 0x002d, 0x0d },
+	{ 2, 0x00, 0x002e, 0x8f },
+	{ 2, 0x00, 0x002f, 0x0b },
+	{ 2, 0x00, 0x0049, 0x00 },
+	{ 3, 0x00, 0x0049, 0x00 },
+	{ 3, 0x6a, 0x0059, 0x00 },
+	{ 2, 0x00, 0x0041, 0x00 },
+	{ 3, 0x40, 0x0041, 0x00 },
+	{ 2, 0x00, 0x0049, 0x00 },
+	{ 3, 0x08, 0x0049, 0x00 },
+	{ 3, 0x0e, 0x007b, 0x00 },
+	{ 3, 0x0e, 0x007c, 0x00 },
+	{ 3, 0x01, 0x007a, 0x00 },
 };
 
 static const struct ec_reg_val ec_fan_init_sequence[] = {
-	{ 2, 0x10, 0x08cc },
-	{ 2, 0x10, 0x08d0 },
-	{ 2, 0x10, 0x089c },
-	{ 2, 0x10, 0x0878 },
-	{ 2, 0x10, 0x0880 },
-	{ 2, 0x11, 0x0884 },
-	{ 2, 0x10, 0x08e4 },
-	{ 2, 0x10, 0x08e0 },
-	{ 2, 0x10, 0x0848 },
-	{ 2, 0x10, 0x084c },
-	{ 2, 0x10, 0x0850 },
-	{ 2, 0x10, 0x083c },
-	{ 2, 0x10, 0x0840 },
-	{ 2, 0x10, 0x0844 },
-	{ 2, 0x10, 0x0814 },
-	{ 1, 0xff, 0x0005 },
-	{ 1, 0x30, 0x00f0 },
-	{ 1, 0x10, 0x00f8 },
-	{ 1, 0x00, 0x00f9 },
-	{ 1, 0x00, 0x00fa },
-	{ 1, 0x00, 0x00fb },
-	{ 1, 0x00, 0x00ea },
-	{ 1, 0x00, 0x00eb },
-	{ 1, 0x7c, 0x00ef },
-	{ 1, 0x03, 0x006e },
-	{ 1, 0x51, 0x02d0 },
-	{ 1, 0x01, 0x02d2 },
-	{ 1, 0x12, 0x059a },
-	{ 1, 0x11, 0x059e },
-	{ 1, 0x14, 0x05a2 },
-	{ 1, 0x55, 0x05a3 },
-	{ 1, 0x01, 0x02db },
-	{ 1, 0x01, 0x0040 },
+	{ 5, 0x10, 0x08cc },
+	{ 5, 0x10, 0x08d0 },
+	{ 5, 0x10, 0x089c },
+	{ 5, 0x10, 0x0878 },
+	{ 5, 0x10, 0x0880 },
+	{ 5, 0x11, 0x0884 },
+	{ 5, 0x10, 0x08e4 },
+	{ 5, 0x10, 0x08e0 },
+	{ 5, 0x10, 0x0848 },
+	{ 5, 0x10, 0x084c },
+	{ 5, 0x10, 0x0850 },
+	{ 5, 0x10, 0x083c },
+	{ 5, 0x10, 0x0840 },
+	{ 5, 0x10, 0x0844 },
+	{ 5, 0x10, 0x0814 },
+	{ 3, 0xff, 0x0005 },
+	{ 3, 0x30, 0x00f0 },
+	{ 3, 0x10, 0x00f8 },
+	{ 3, 0x00, 0x00f9 },
+	{ 3, 0x00, 0x00fa },
+	{ 3, 0x00, 0x00fb },
+	{ 3, 0x00, 0x00ea },
+	{ 3, 0x00, 0x00eb },
+	{ 3, 0x7c, 0x00ef },
+	{ 3, 0x03, 0x006e },
+	{ 3, 0x51, 0x02d0 },
+	{ 3, 0x01, 0x02d2 },
+	{ 3, 0x12, 0x059a },
+	{ 3, 0x11, 0x059e },
+	{ 3, 0x14, 0x05a2 },
+	{ 3, 0x55, 0x05a3 },
+	{ 3, 0x01, 0x02db },
+	{ 3, 0x01, 0x0040 },
 };
 
-static void set_ec_ldn_register(uint16_t ldn, uint8_t val, uint16_t reg)
+static void set_ec_ldn_register(uint16_t ldn, uint8_t *val, uint16_t reg)
 {
-	uint16_t ldn_num = (ldn << 1) | 0x101;
+	uint16_t timeout = 0;
+
 	sch5545_emi_ec2h_mailbox_clear();
-	sch5545_emi_set_ec_addr(0x8000);
-	outb(ldn_num & 0xff, emi_bar + SCH5545_EMI_EC_DATA);
-	outb((ldn_num >> 8) & 0xff, emi_bar+ SCH5545_EMI_EC_DATA + 1);
+	sch5545_emi_ec_write16(0x8000, ldn | 0x100);
+
 	sch5545_emi_set_ec_addr(0x8004);
-	outb(val, emi_bar + SCH5545_EMI_EC_DATA);
+
+	if ((ldn & 1) != 0)
+		outb(*val, emi_bar + SCH5545_EMI_EC_DATA);
+
 	outb(reg & 0xff, emi_bar + SCH5545_EMI_EC_DATA + 2);
 	outb((reg >> 8) & 0xff, emi_bar + SCH5545_EMI_EC_DATA + 3);
 	sch5545_emi_h2ec_mbox_write(1);
 
-	while (sch5545_emi_ec2h_mbox_read() == 0);
+	do {
+		timeout++;
+		if((sch5545_emi_ec2h_mbox_read() & 1) != 0)
+			break;
+	} while (timeout < 0xfff);
 
 	sch5545_emi_set_int_src(0x11);
 	sch5545_emi_h2ec_mbox_write(0xc0);
+
+	if ((ldn & 1) == 0)
+		*val = inb(emi_bar + SCH5545_EMI_EC_DATA);
 }
 
 void sch5545_ec_fan_spin_up(void)
 {
 	unsigned int i;
+	uint8_t val;
 
 	emi_bar = sch5545_read_emi_bar(0x2f);
 
-	for (i = 0; i < ARRAY_SIZE(ec_fan_init_sequence); i++ )
-		set_ec_ldn_register(ec_fan_init_sequence[i].ldn,
-				    ec_fan_init_sequence[i].val,
+	for (i = 0; i < ARRAY_SIZE(ec_fan_init_sequence); i++ ) {
+		val = ec_fan_init_sequence[i].val;
+		set_ec_ldn_register(ec_fan_init_sequence[i].ldn, &val,
 				    ec_fan_init_sequence[i].reg);
+	}
 }
 
 
-static uint8_t send_mbox_msg_with_interrupt(uint8_t mbox_message)
+static uint8_t send_mbox_msg_with_int(uint8_t mbox_message)
 {
-	uint8_t int_sts, int_cond, ec_response;
+	uint8_t int_sts, int_cond;
 
 	sch5545_emi_h2ec_mbox_write(mbox_message);
 
@@ -631,9 +655,25 @@ static uint8_t send_mbox_msg_with_interrupt(uint8_t mbox_message)
 	if ((int_sts & 1) == 0)
 		return 0;
 
-	ec_response = sch5545_emi_ec2h_mbox_read();
+	if (sch5545_emi_ec2h_mbox_read() == mbox_message)
+		return 1;
 
-	if (ec_response == mbox_message)
+	return 0;
+}
+
+static uint8_t send_mbox_msg_simple(uint8_t mbox_message)
+{
+	uint8_t int_sts;
+
+	sch5545_emi_h2ec_mbox_write(mbox_message);
+
+	do {
+		int_sts = sch5545_emi_get_int_src_low();
+		if ((int_sts & 70) != 0)
+			return 0;
+	} while ((int_sts & 1) == 0);
+
+	if (sch5545_emi_ec2h_mbox_read() == mbox_message)
 		return 1;
 
 	return 0;
@@ -668,7 +708,7 @@ int ec_write_read_reg_int_disabled(uint16_t ldn, uint16_t reg,
 	sch5545_emi_ec_write16(0x8000, ldn | 0x100);
 	sch5545_emi_ec_write32(0x8004, (reg << 16) | *value);
 
-	status = send_mbox_msg_with_interrupt(1);
+	status = send_mbox_msg_with_int(1);
 
 	if ((status == 1) && ((ldn & 1) == 0)) {
 		*value = sch5545_emi_ec_read8(0x8004);
@@ -688,16 +728,36 @@ int ec_write_read_reg_int_disabled(uint16_t ldn, uint16_t reg,
 	return ret;
 }
 
+static uint8_t ec_write_reg_and_readback(uint8_t ldn, uint16_t reg)
+{
+	uint8_t int_mask_bckup, ret = 0;
+
+	int_mask_bckup = sch5545_emi_get_int_mask_low();
+	sch5545_emi_set_int_mask_low(0);
+
+	sch5545_emi_ec_write16(0x8000, (ldn | 0x80) << 1);
+	sch5545_emi_ec_write32(0x8004, reg << 16);
+
+	if (send_mbox_msg_with_int(1))
+		ret = sch5545_emi_ec_read8(0x8004);
+	else
+		printk(BIOS_WARNING, "EC mailbox returned unexpected value\n");
+
+	sch5545_emi_set_int_mask_low(int_mask_bckup);
+
+	return ret;
+}
+
 int ec_write_read_reg_ldn_without_int(uint16_t ldn, uint16_t reg, uint8_t val)
 {
 	uint8_t status;
 
-	sch5545_emi_set_int_mask_low(0);
-
 	sch5545_emi_ec_write16(0x8000, ldn | 0x100);
 	sch5545_emi_ec_write32(0x8004, (reg << 16) | val);
 
-	status = send_mbox_msg_with_interrupt(1);
+	status = send_mbox_msg_with_int(1);
+
+	sch5545_emi_set_int_mask_low(0);
 
 	if (status != 1) {
 		printk(BIOS_WARNING, "EC mailbox returned unexpected value\n");
@@ -708,13 +768,13 @@ int ec_write_read_reg_ldn_without_int(uint16_t ldn, uint16_t reg, uint8_t val)
 }
 
 int ec_write_32_bulk_with_int(uint16_t addr, uint32_t *data,
-				     uint32_t size)
+				     uint32_t size, uint8_t mbox_msg)
 {
 	uint8_t status;
 
 	sch5545_emi_ec_write32_bulk(addr, data, size);
 
-	status = send_mbox_msg_with_interrupt(size);
+	status = send_mbox_msg_with_int(mbox_msg);
 
 	if (status != 1) {
 		printk(BIOS_WARNING, "EC mailbox returned unexpected value\n");
@@ -724,67 +784,129 @@ int ec_write_32_bulk_with_int(uint16_t addr, uint32_t *data,
 	return (int)status;
 }
 
-void sch5545_update_ec_firmware(void)
+void sch5545_update_ec_firmware(uint16_t ec_version)
 {
-	sch5545_emi_h2ec_mbox_write(0x03);
-	while (sch5545_emi_get_int_src_low() == 0);
-	if (sch5545_emi_get_int_src_low() != 0x01) {
-		printk(BIOS_WARNING, "EC cold boot path failed!\n");
-		printk(BIOS_INFO, "EC interrupt source LSB %02x != 0x01",
-		       sch5545_emi_get_int_src_low());
+	uint8_t status;
+	uint16_t ec_fw_version = ec_fw[3] & 0xffff;
+
+	if (ec_version != ec_fw_version) {
+		printk(BIOS_INFO, "SCH5545 EC is not functional, probably due"
+				  " to power failure\n");
+		printk(BIOS_INFO, "Uploading EC firmware to SCH5545\n");
+
+		if (!send_mbox_msg_simple(0x03)) {
+			printk(BIOS_WARNING, "EC didn't accept FW upload start"
+			       " signal\n");
+			printk(BIOS_WARNING, "EC firmware update failed!\n");
+			return;
+		}
+
+		sch5545_emi_ec_write32_bulk(0x8100, ec_fw, ARRAY_SIZE(ec_fw));
+
+		status = send_mbox_msg_simple(0x04);
+		status += send_mbox_msg_simple(0x06);
+
+		if (!status) {
+			printk(BIOS_WARNING, "EC firmware update failed!\n");
+		}
+
+		if (ec_fw_version != sch5545_get_ec_fw_version()) {
+			printk(BIOS_ERR, "EC firmware update failed!\n");
+			printk(BIOS_ERR, "The fans will keep running at"
+						" maximum speed\n");
+		} else {
+			printk(BIOS_INFO, "EC firmware update success\n");
+			/*
+			 * The vendor BIOS does a full reset after EC firmware
+			 * update. Most likely becasue the fans are adapting
+			 * very slowly after automatic fan control is enabled.
+			 * This make huge noise. To avoid it, also do the full
+			 * reset. On next boot, it will not be necessary.
+			 */
+			do_full_reset();
+		}
 	}
-	if (sch5545_emi_ec2h_mbox_read() != 0x03) {
-		printk(BIOS_WARNING, "EC cold boot path failed!\n");
-		printk(BIOS_INFO, "EC to Host mailbox %02x != 0x03",
-		       sch5545_emi_ec2h_mbox_read());
+}
+
+void sch5545_ec_hwm_init(void)
+{
+	uint8_t val;
+
+	int i;
+
+	ec_check_mbox_and_int_status(0x20, 0x01);
+
+	ec_write_reg_and_readback(1, 0xcb);
+	ec_write_reg_and_readback(1, 0xb8);
+
+	for (i = 0; i < ARRAY_SIZE(ec_hwm_init_seq); i++ ) {
+		val = ec_hwm_init_seq[i].val;
+		ec_write_read_reg_int_disabled(ec_hwm_init_seq[i].ldn,
+					       ec_hwm_init_seq[i].reg, &val,
+					       ec_hwm_init_seq[i].expected);
 	}
 
-	sch5545_emi_ec_write32_bulk(0x8100, ec_fw, ARRAY_SIZE(ec_fw));
-
-	sch5545_emi_h2ec_mbox_write(0x0c);
+	ec_check_mbox_and_int_status(0x01, 0x01);
 }
 
 uint16_t sch5545_get_ec_fw_version(void)
 {
 	uint8_t val;
 	uint16_t ec_fw_version;
-	int i;
-
-	ec_check_mbox_and_int_status(0x20, 0x01);
-
-	for (i = 0; i < ARRAY_SIZE(ec_fwver_check_seq); i++ ) {
-		val = ec_fwver_check_seq[i].val;
-		ec_write_read_reg_int_disabled(ec_fwver_check_seq[i].ldn,
-					       ec_fwver_check_seq[i].reg, &val,
-					       ec_fwver_check_seq[i].expected);
-	}
 
 	/* Read the FW version currently loaded by EC */
 	val = 0xff;
 	ec_write_read_reg_int_disabled(2, 0x02ad, &val, 0x00);
-	ec_write_read_reg_int_disabled(2, 0x02ae, &val, 0x03);
 	ec_fw_version = (val << 8);
-	ec_write_read_reg_int_disabled(2, 0x02ac, &val, 0x18);
+	ec_write_read_reg_int_disabled(2, 0x02ae, &val, 0x03);
 	ec_fw_version |= val;
+	ec_write_read_reg_int_disabled(2, 0x02ac, &val, 0x18);
 	ec_write_read_reg_int_disabled(2, 0x02fd, &val, 0x32);
 	ec_write_read_reg_int_disabled(2, 0x02b0, &val, 0x00);
 
 	return ec_fw_version;
 }
 
+static uint8_t sch5545_multiple_write(uint8_t val1, uint8_t val2,
+				      uint8_t to_read, uint8_t readback)
+{
+	uint8_t i, val, ret = 0;
+
+	for (i = 0; i < to_read; i++)
+		printk(BIOS_DEBUG, "%s: addr 0x80%02x, val is %08x\n",
+		       __func__, i * 4, sch5545_emi_ec_read32(0x8000 + i * 4));
+
+	send_mbox_msg_simple(0x05);
+
+	val = val1;
+	ec_write_read_reg_int_disabled(2, 0x059f, &val, 0x4c);
+	if (readback) {
+		val = 0x00;
+		ec_write_read_reg_int_disabled(2, 0x059e, &val, 0x22);
+		ret = val;
+	}
+	val = val2;
+	ec_write_read_reg_int_disabled(2, 0x059f, &val, 0x4c);
+	ec_write_read_reg_int_disabled(2, 0x05a2, &val, 0x92);
+	ec_write_read_reg_int_disabled(2, 0x059e, &val, 0x22);
+
+	return ret;
+}
+
 void sch5545_ec_finalize(void)
 {
 	uint8_t val;
+	uint32_t data[5];
 	int i;
 
 	val = 0x00;
 	ec_write_read_reg_int_disabled(2, 0x02d0, &val, 0x4c);
 	ec_write_read_reg_int_disabled(2, 0x059e, &val, 0x11);
 
-	val = sch5545_emi_get_int_src_low();
+	val = sch5545_emi_get_int_mask_low();
 	if (val != 0)
-		printk(BIOS_INFO, "EC INT SRC should be 0, is %02x\n", val);
-	sch5545_emi_set_int_src_low(val | 8);
+		printk(BIOS_INFO, "EC INT mask should be 0, is %02x\n", val);
+	sch5545_emi_set_int_mask_low(val | 8);
 
 	val = 0x98;
 	ec_write_read_reg_int_disabled(2, 0x02ad, &val, 0x00);
@@ -793,20 +915,130 @@ void sch5545_ec_finalize(void)
 	ec_write_read_reg_int_disabled(2, 0x02fd, &val, 0x32);
 	ec_write_read_reg_int_disabled(2, 0x02b0, &val, 0x00);
 
-	sch5545_emi_ec_write32(0x8080, 0);
+	sch5545_multiple_write(0x18, 0xa8, 3, 0);
+	sch5545_emi_ec_write32(0x8000, 0x0d0010d);
+	data[0] = 0xc5229201;
+	data[1] = 0x00050100;
+	data[2] = 0x00000101;
+	ec_write_32_bulk_with_int(0x8004, data, 3, 0x02);
 
-	val = 0x18;
-	ec_write_read_reg_int_disabled(2, 0x059f, &val, 0x4c);
-	val = 0x00;
-	ec_write_read_reg_int_disabled(2, 0x059f, &val, 0x4c);
-	ec_write_read_reg_int_disabled(2, 0x05a2, &val, 0x14);
-	ec_write_read_reg_int_disabled(2, 0x059e, &val, 0x11);
+	val = sch5545_emi_get_int_src_low();
+	if (val != 0x08)
+		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
 
+	sch5545_multiple_write(0x10, 0x00, 4, 0);
+	sch5545_emi_ec_write32(0x8000, 0x0d0010d);
+	data[0] = 0xc5229201;
+	data[1] = 0x00040100;
+	data[2] = 0xfff0f101;
+	data[3] = 0x00000000;
+	ec_write_32_bulk_with_int(0x8004, data, 4, 0x02);
+
+	val = sch5545_emi_get_int_src_low();
+	if (val != 0x08)
+		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
+
+	sch5545_multiple_write(0x10, 0x00, 4, 0);
+	sch5545_emi_ec_write32(0x8000, 0x0d0010d);
+	data[0] = 0xc6229201;
+	data[1] = 0x00040100;
+	data[2] = 0xfff0f101;
+	data[3] = 0x00000000;
+	ec_write_32_bulk_with_int(0x8004, data, 4, 0x02);
+
+	val = sch5545_emi_get_int_src_low();
+	if (val != 0x08)
+		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
+
+	sch5545_multiple_write(0x10, 0x10, 4, 0);
+	sch5545_emi_ec_write32(0x8000, 0x0d0010d);
+	data[0] = 0xc7229201;
+	data[1] = 0x00040100;
+	data[2] = 0xfff0f101;
+	data[3] = 0x00000000;
+	ec_write_32_bulk_with_int(0x8004, data, 4, 0x02);
+	val = sch5545_emi_get_int_src_low();
+	if (val != 0x08)
+		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
+
+	val = sch5545_multiple_write(0x10, 0x00, 4, 1);
+	sch5545_emi_ec_write32(0x8000, 0x0b0010d);
+	data[0] = 0xc0229201;
+	data[1] = 0x00010100;
+	data[2] = 0xfff0f101;
+	data[3] = 0x00000000 | (val << 8);
+	ec_write_32_bulk_with_int(0x8004, data, 4, 0x02);
+	val = sch5545_emi_get_int_src_low();
+	if (val != 0x08)
+		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
+
+	sch5545_multiple_write(0x10, 0x00, 4, 0);
+	sch5545_emi_ec_write32(0x8000, 0x110010d);
+	data[0] = 0xc0229201;
+	data[1] = 0x04000101;
+	data[2] = 0x09000400;
+	data[3] = 0x00000000;
+	data[4] = 0x00000900;
+	ec_write_32_bulk_with_int(0x8004, data, 5, 0x02);
+	val = sch5545_emi_get_int_src_low();
+	if (val != 0x08)
+		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
+
+	sch5545_multiple_write(0x00, 0x00, 4, 0);
 	sch5545_emi_ec_write32(0x8000, 0x070010d);
-	uint32_t data[] = { 0xc8111401, 0x00058000 };
-	ec_write_32_bulk_with_int(0x8004, data, ARRAY_SIZE(data));
+	data[0] = 0xc8229201;
+	data[1] = 0x00058000;
+	ec_write_32_bulk_with_int(0x8004, data, 5, 0x02);
+	val = sch5545_emi_get_int_src_low();
+	if (val != 0x08)
+		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
 
-	ec_check_mbox_and_int_status(0x00, 0x02);
+	sch5545_multiple_write(0x10, 0x70, 4, 0);
+	sch5545_emi_ec_write32(0x8000, 0x0f0010d);
+	data[0] = 0xc8229201;
+	data[1] = 0x0d038001;
+	data[2] = 0x28152938;
+	data[3] = 0x00201806;
+	ec_write_32_bulk_with_int(0x8004, data, 4, 0x02);
+	val = sch5545_emi_get_int_src_low();
+	if (val != 0x08)
+		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
+
+	sch5545_multiple_write(0x10, 0x00, 4, 0);
+	sch5545_emi_ec_write32(0x8000, 0x0c0010d);
+	data[0] = 0xc9229201;
+	data[1] = 0x04038001;
+	data[2] = 0x28152938;
+	data[3] = 0x02010003;
+	ec_write_32_bulk_with_int(0x8004, data, 4, 0x02);
+	val = sch5545_emi_get_int_src_low();
+	if (val != 0x08)
+		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
+
+	sch5545_multiple_write(0x10, 0x07, 7, 0);
+	sch5545_emi_ec_write32(0x8000, 0x0e0010d);
+	data[0] = 0xca229201;
+	data[1] = 0x01038001;
+	data[2] = 0x00000000;
+	data[3] = 0x00000301;
+	ec_write_32_bulk_with_int(0x8004, data, 4, 0x02);
+	val = sch5545_emi_get_int_src_low();
+	if (val != 0x08)
+		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
+
+	printk(BIOS_DEBUG, "%s: addr %04x, val is %08x\n", __func__, 0x8000,
+	       sch5545_emi_ec_read32(0x8000));
+	printk(BIOS_DEBUG, "%s: addr %04x, val is %08x\n", __func__, 0x8004,
+	       sch5545_emi_ec_read32(0x8004));
+	printk(BIOS_DEBUG, "%s: addr %04x, val is %08x\n", __func__, 0x8008,
+	       sch5545_emi_ec_read32(0x8008));
+	printk(BIOS_DEBUG, "%s: addr %04x, val is %08x\n", __func__, 0x800c,
+	       sch5545_emi_ec_read32(0x800c));
+
+
+	send_mbox_msg_simple(0x05);
+	val = 0x10;
+	ec_write_read_reg_int_disabled(2, 0x059f, &val, 0x4c);
 
 	for (i = 0; i < ARRAY_SIZE(ec_final_seq); i++ ) {
 		val = ec_final_seq[i].val;
