@@ -18,7 +18,7 @@
 
 uint16_t sch5545_get_ec_fw_version(void);
 void sch5545_update_ec_firmware(uint16_t ec_version);
-void sch5545_ec_fan_spin_up(void);
+void sch5545_ec_early_init(void);
 void sch5545_ec_hwm_init(void);
 void sch5545_ec_finalize(void);
 int ec_write_read_reg_int_disabled(uint16_t ldn, uint16_t reg, uint8_t *value,

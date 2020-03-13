@@ -111,14 +111,20 @@ void mainboard_early_init(int s3resume)
 		printk(BIOS_INFO, "EC interrupt mask MSB is not 0\n");
 
 	sch5545_emi_disable_interrupts();
-	sch5545_ec_fan_spin_up();
+	sch5545_ec_early_init();
+	sch5545_ec_hwm_init();
 
-	ec_fw_version = sch5545_get_ec_fw_version();
-	printk(BIOS_DEBUG, "SCH5545 EC firmware version %04x\n", ec_fw_version);
+	if (!s3resume) {
+		ec_fw_version = sch5545_get_ec_fw_version();
+		printk(BIOS_DEBUG, "SCH5545 EC firmware version %04x\n",
+		       ec_fw_version);
+		sch5545_update_ec_firmware(ec_fw_version);
+	}
 
-	sch5545_update_ec_firmware(ec_fw_version);
-
-	/* FIXME */
+	/*
+	 * FIXME: something is wrong with the byte sequences. Chassis fan is
+	 * is running at higher speed than vendor BIOS. 
+	 */
 	sch5545_ec_finalize();
 
 	printk(BIOS_DEBUG, "EC init complete.\n");

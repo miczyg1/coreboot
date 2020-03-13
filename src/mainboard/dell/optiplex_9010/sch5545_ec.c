@@ -559,7 +559,7 @@ static const struct ec_reg_val_expected ec_final_seq[] = {
 	{ 3, 0x01, 0x007a, 0x00 },
 };
 
-static const struct ec_reg_val ec_fan_init_sequence[] = {
+static const struct ec_reg_val ec_early_init_sequence[] = {
 	{ 5, 0x10, 0x08cc },
 	{ 5, 0x10, 0x08d0 },
 	{ 5, 0x10, 0x089c },
@@ -624,17 +624,17 @@ static void set_ec_ldn_register(uint16_t ldn, uint8_t *val, uint16_t reg)
 		*val = inb(emi_bar + SCH5545_EMI_EC_DATA);
 }
 
-void sch5545_ec_fan_spin_up(void)
+void sch5545_ec_early_init(void)
 {
 	unsigned int i;
 	uint8_t val;
 
 	emi_bar = sch5545_read_emi_bar(0x2f);
 
-	for (i = 0; i < ARRAY_SIZE(ec_fan_init_sequence); i++ ) {
-		val = ec_fan_init_sequence[i].val;
-		set_ec_ldn_register(ec_fan_init_sequence[i].ldn, &val,
-				    ec_fan_init_sequence[i].reg);
+	for (i = 0; i < ARRAY_SIZE(ec_early_init_sequence); i++ ) {
+		val = ec_early_init_sequence[i].val;
+		set_ec_ldn_register(ec_early_init_sequence[i].ldn, &val,
+				    ec_early_init_sequence[i].reg);
 	}
 }
 
@@ -825,6 +825,8 @@ void sch5545_update_ec_firmware(uint16_t ec_version)
 			 */
 			do_full_reset();
 		}
+	} else {
+		printk(BIOS_INFO, "SCH5545 EC firmware up to date\n");
 	}
 }
 

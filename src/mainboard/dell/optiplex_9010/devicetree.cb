@@ -111,7 +111,6 @@ chip northbridge/intel/sandybridge
 					end
 					device pnp 2e.0 on # EMI
 						io 0x60 = 0xa40
-						irq 0x70 = 2
 					end
 					device pnp 2e.1 on # KBC/PS2M
 						io 0x60 = 0x60
@@ -126,6 +125,7 @@ chip northbridge/intel/sandybridge
 					device pnp 2e.8 off end # UART2
 					device pnp 2e.a on # Runtime registers
 						io 0x60 = 0xa00
+						irq 0x70 = 9 # PME
 					end
 					device pnp 2e.b off end # Floppy
 					device pnp 2e.11 off end # PP
