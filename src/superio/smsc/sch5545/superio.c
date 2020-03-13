@@ -160,6 +160,7 @@ static void sch5545_set_irq(struct device *dev, u8 index, u8 irq)
 
 	/* 
 	 * Some LDNs can generate IRQs from two sources, i.e.
+	 * - EMI may generate interrupts for Mailbox and INT source register
 	 * - KBC may generate separate IRQ for maouse and keyboard,
 	 * - RR LDN may generate IRQ for PME and SMI etc.
 	 * SELECT bit allows to distinguish IRQ source for single LDN.
@@ -167,21 +168,9 @@ static void sch5545_set_irq(struct device *dev, u8 index, u8 irq)
 	 */
 	switch (dev->path.pnp.device) {
 		case SCH5545_LDN_EMI:
-			/* EC-to-Host may generate SMI, use select bit */
-			if (irq == 2)
-				select_bit = 0x80;	
-			break;
 		case SCH5545_LDN_KBC:
-			/* set SELECT bit for mouse */
-			if (irq == 12)
-				select_bit = 0x80;
-			break;
 		case SCH5545_LDN_RR:
-			/* Runtime registers can generate SMI from intrusion
-			 * switch or GPIOs etc, thus should use select bit.
-			 * We use IRQ9 here to distinguish RR from EMI.
-			 */
-			if (irq == 9)
+			if (index == 0x72)
 				select_bit = 0x80;
 			break;
 		default:
