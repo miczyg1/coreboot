@@ -112,7 +112,7 @@ void mainboard_early_init(int s3resume)
 
 	sch5545_emi_disable_interrupts();
 	sch5545_ec_early_init();
-	sch5545_ec_hwm_init();
+	sch5545_ec_hwm_early_init();
 
 	if (!s3resume) {
 		ec_fw_version = sch5545_get_ec_fw_version();
@@ -121,13 +121,7 @@ void mainboard_early_init(int s3resume)
 		sch5545_update_ec_firmware(ec_fw_version);
 	}
 
-	/*
-	 * FIXME: something is wrong with the byte sequences. Chassis fan is
-	 * is running at higher speed than vendor BIOS. 
-	 */
-	sch5545_ec_finalize();
-
-	printk(BIOS_DEBUG, "EC init complete.\n");
+	printk(BIOS_DEBUG, "EC early init complete.\n");
 
 	sch5545_enable_uart(0x2e, 0);
 }
@@ -137,6 +131,7 @@ void mainboard_early_init(int s3resume)
 void mainboard_config_superio(void)
 {
 	sch5545_early_init(0x2e);
+	sch5545_emi_init(0x2e);
 	sch5545_emi_disable_interrupts();
 }
 
