@@ -15,27 +15,42 @@
  */
 
 #include <cf9_reset.h>
+#include <string.h>
 #include <arch/io.h>
+#include <cpu/x86/msr.h>
 #include <console/console.h>
+#include <cpu/intel/model_206ax/model_206ax.h>
+#include <southbridge/intel/common/gpio.h>
 #include <superio/smsc/sch5545/sch5545.h>
 #include <superio/smsc/sch5545/sch5545_emi.h>
 
 #include "sch5545_ec.h"
 
+#define TCC_TEMPERATURE				95
+
+#define GPIO_CHASSIS_ID0			1
+#define GPIO_CHASSIS_ID1			17
+#define GPIO_CHASSIS_ID2			37
+#define GPIO_FRONT_PANEL_CHASSIS_DET_L		70
+
 static uint16_t emi_bar;
 
-struct ec_reg_val {
-	uint8_t ldn;
+enum {
+	TDP_16 = 0x10,
+	TDP_32 = 0x20,
+	TDP_COMMON = 0xff,
+};
+
+struct ec_val_reg {
 	uint8_t val;
 	uint16_t reg;
 };
 
-struct ec_reg_val_expected {
-	uint8_t ldn;
+typedef struct ec_val_reg_tdp {
 	uint8_t val;
 	uint16_t reg;
-	uint8_t expected;
-};
+	uint8_t tdp;
+} ec_chassis_tdp_t;
 
 static const uint32_t ec_fw[] = {
 	0x43534d53, 0x4d494255, 0x00183c00, 0x00020003,
@@ -413,198 +428,367 @@ static const uint32_t ec_fw[] = {
 	0x00803c00, 0x10c0224a, 0xcfaf0385, 0x1100234a,
 };
 
-static const struct ec_reg_val_expected ec_hwm_init_seq[] = {
-	{ 3, 0xa0, 0x02fc, 0x00 },
-	{ 3, 0x32, 0x02fd, 0x00 },
-	{ 3, 0x77, 0x0005, 0x00 },
-	{ 3, 0x0f, 0x0018, 0x00 },
-	{ 3, 0x2f, 0x0019, 0x00 },
-	{ 3, 0x2f, 0x001a, 0x00 },
-	{ 3, 0x33, 0x008a, 0x00 },
-	{ 3, 0x33, 0x008b, 0x00 },
-	{ 3, 0x33, 0x008c, 0x00 },
-	{ 3, 0x10, 0x00ba, 0x00 },
-	{ 3, 0xff, 0x00d1, 0x00 },
-	{ 3, 0xff, 0x00d6, 0x00 },
-	{ 3, 0xff, 0x00db, 0x00 },
-	{ 3, 0x00, 0x0048, 0x00 },
-	{ 3, 0x00, 0x0049, 0x00 },
-	{ 3, 0x00, 0x007a, 0x00 },
-	{ 3, 0x00, 0x007b, 0x00 },
-	{ 3, 0x00, 0x007c, 0x00 },
-	{ 3, 0x00, 0x0080, 0x00 },
-	{ 3, 0x00, 0x0081, 0x00 },
-	{ 3, 0x00, 0x0082, 0x00 },
-	{ 3, 0xbb, 0x0083, 0x00 },
-	{ 3, 0xb0, 0x0084, 0x00 },
-	{ 3, 0x88, 0x01a1, 0x00 },
-	{ 3, 0x80, 0x01a4, 0x00 },
-	{ 3, 0x00, 0x0088, 0x00 },
-	{ 3, 0x00, 0x0089, 0x00 },
-	{ 3, 0x02, 0x00a0, 0x00 },
-	{ 3, 0x02, 0x00a1, 0x00 },
-	{ 3, 0x02, 0x00a2, 0x00 },
-	{ 3, 0x04, 0x00a4, 0x00 },
-	{ 3, 0x04, 0x00a5, 0x00 },
-	{ 3, 0x04, 0x00a6, 0x00 },
-	{ 3, 0x00, 0x00ab, 0x00 },
-	{ 3, 0x3f, 0x00ad, 0x00 },
-	{ 3, 0x07, 0x00b7, 0x00 },
-	{ 3, 0x50, 0x0062, 0x00 },
-	{ 3, 0x46, 0x0063, 0x00 },
-	{ 3, 0x50, 0x0064, 0x00 },
-	{ 3, 0x46, 0x0065, 0x00 },
-	{ 3, 0x50, 0x0066, 0x00 },
-	{ 3, 0x46, 0x0067, 0x00 },
-	{ 3, 0x98, 0x0057, 0x00 },
-	{ 3, 0x98, 0x0059, 0x00 },
-	{ 3, 0x7c, 0x0061, 0x00 },
-	{ 3, 0x00, 0x01bc, 0x00 },
-	{ 3, 0x00, 0x01bd, 0x00 },
-	{ 3, 0x00, 0x01bb, 0x00 },
-	{ 3, 0xdd, 0x0085, 0x00 },
-	{ 3, 0xdd, 0x0086, 0x00 },
-	{ 3, 0x07, 0x0087, 0x00 },
-	{ 3, 0x5e, 0x0090, 0x00 },
-	{ 3, 0x5e, 0x0091, 0x00 },
-	{ 3, 0x5d, 0x0095, 0x00 },
-	{ 3, 0x00, 0x0096, 0x00 },
-	{ 3, 0x00, 0x0097, 0x00 },
-	{ 3, 0x00, 0x009b, 0x00 },
-	{ 3, 0x86, 0x00ae, 0x00 },
-	{ 3, 0x86, 0x00af, 0x00 },
-	{ 3, 0x67, 0x00b3, 0x00 },
-	{ 3, 0xff, 0x00c4, 0x00 },
-	{ 3, 0xff, 0x00c5, 0x00 },
-	{ 3, 0xff, 0x00c9, 0x00 },
-	{ 3, 0x01, 0x0040, 0x00 },
-	{ 3, 0x00, 0x02fc, 0x00 },
-	{ 3, 0x9a, 0x02b3, 0x00 },
-	{ 3, 0x05, 0x02b4, 0x00 },
-	{ 3, 0x01, 0x02cc, 0x00 },
-	{ 3, 0x4c, 0x02d0, 0x00 },
-	{ 3, 0x01, 0x02d2, 0x00 },
-	{ 3, 0x01, 0x006f, 0x00 },
-	{ 3, 0x02, 0x0070, 0x00 },
-	{ 3, 0x03, 0x0071, 0x00 },
+static const struct ec_val_reg ec_gpio_init_table[] = {
+	/*
+	 * Probably some early GPIO initialization, seting GPIIO functions.
+	 * The LSBs in third column match the GPIO config registers offsets for
+	 * non-default GPIOs.
+	 */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x08cc }, /* GP063 (def) /KBDRST#*/
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x08d0 }, /* GP064 (def) /A20M */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x089c }, /* GP047/TXD1 (def)  */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x0878 }, /* GP036 (def) /SMBCLK1 */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x0880 }, /* GP040 (def) / SMBDAT1 */
+	{ EC_GPIO_OD | EC_GPIO_FUNC1, 0x0884 }, /* GP041 (def) / IO_PME# */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x08e4 }, /* GP071 (def) / IO_SMI# */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x08e0 }, /* GP070 (def) / SPEAKER */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x0848 }, /* GP022 (def) / PWM1 */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x084c }, /* GP023 (def) / PWM2 */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x0850 }, /* GP024 (def) / PWM3 */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x083c }, /* GP017 - TACH1 (def) */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x0840 }, /* GP020 - TACH2 (def) */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x0844 }, /* GP021 - TACH3 (def) */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x0814 }, /* GP005 (def) / PECI_REQ# */
 };
 
-static const struct ec_reg_val_expected ec_final_seq[] = {
-	{ 2, 0x00, 0x0048, 0x00 },
-	{ 3, 0x00, 0x0048, 0x00 },
-	{ 2, 0x00, 0x0042, 0x00 },
-	{ 2, 0x00, 0x0048, 0x00 },
-	{ 3, 0x02, 0x0048, 0x00 },
-	{ 2, 0x00, 0x0048, 0x02 },
-	{ 3, 0x02, 0x0048, 0x00 },
-	{ 2, 0x00, 0x0042, 0x00 },
-	{ 2, 0x00, 0x0048, 0x02 },
-	{ 3, 0x06, 0x0048, 0x00 },
-	{ 2, 0x00, 0x0081, 0x00 },
-	/* The expected value here may be different, like 0x5a, 0x5b, 0x59 */
-	{ 2, 0x00, 0x0027, 0x5c },
-	{ 2, 0x00, 0x02fc, 0x00 },
-	{ 3, 0xa0, 0x02fc, 0x00 },
-	{ 3, 0x32, 0x02fd, 0x00 },
-	{ 3, 0x33, 0x0005, 0x00 },
-	{ 3, 0x2f, 0x0018, 0x00 },
-	{ 3, 0x2f, 0x0019, 0x00 },
-	{ 3, 0x2f, 0x001a, 0x00 },
-	{ 3, 0x00, 0x0080, 0x00 },
-	{ 3, 0x00, 0x0081, 0x00 },
-	{ 3, 0xbb, 0x0083, 0x00 },
-	{ 3, 0x99, 0x0085, 0x00 },
-	{ 3, 0xdc, 0x0086, 0x00 },
-	{ 3, 0x3d, 0x008a, 0x00 },
-	{ 3, 0x4e, 0x008b, 0x00 },
-	{ 3, 0x6d, 0x0090, 0x00 },
-	{ 3, 0x5f, 0x0091, 0x00 },
-	{ 3, 0x86, 0x0092, 0x00 },
-	{ 3, 0xa4, 0x0096, 0x00 },
-	{ 3, 0xa4, 0x0097, 0x00 },
-	{ 3, 0xa4, 0x0098, 0x00 },
-	{ 3, 0xa4, 0x009b, 0x00 },
-	{ 3, 0x0e, 0x00a0, 0x00 },
-	{ 3, 0x0e, 0x00a1, 0x00 },
-	{ 3, 0x7c, 0x00ae, 0x00 },
-	{ 3, 0x7c, 0x00af, 0x00 },
-	{ 3, 0x98, 0x00b0, 0x00 },
-	{ 3, 0x9a, 0x00b3, 0x00 },
-	{ 3, 0x08, 0x00b6, 0x00 },
-	{ 3, 0x08, 0x00b7, 0x00 },
-	{ 3, 0x64, 0x00ea, 0x00 },
-	{ 3, 0xff, 0x00ef, 0x00 },
-	{ 3, 0x15, 0x00f8, 0x00 },
-	{ 3, 0x00, 0x00f9, 0x00 },
-	{ 3, 0x30, 0x00f0, 0x00 },
-	{ 3, 0x01, 0x00fd, 0x00 },
-	{ 3, 0x88, 0x01a1, 0x00 },
-	{ 3, 0x08, 0x01a2, 0x00 },
-	{ 3, 0x08, 0x01b1, 0x00 },
-	{ 3, 0x97, 0x01be, 0x00 },
-	{ 3, 0x68, 0x0280, 0x00 },
-	{ 2, 0x00, 0x002c, 0xba },
-	{ 2, 0x00, 0x002d, 0x0d },
-	{ 2, 0x00, 0x002e, 0x8f },
-	{ 2, 0x00, 0x002f, 0x0b },
-	{ 2, 0x00, 0x0049, 0x00 },
-	{ 3, 0x00, 0x0049, 0x00 },
-	{ 3, 0x6a, 0x0059, 0x00 },
-	{ 2, 0x00, 0x0041, 0x00 },
-	{ 3, 0x40, 0x0041, 0x00 },
-	{ 2, 0x00, 0x0049, 0x00 },
-	{ 3, 0x08, 0x0049, 0x00 },
-	{ 3, 0x0e, 0x007b, 0x00 },
-	{ 3, 0x0e, 0x007c, 0x00 },
-	{ 3, 0x01, 0x007a, 0x00 },
+static const struct ec_val_reg ec_hwm_early_init_table[] = {
+	/* Probably some early hardware monitor initialization */
+	{ 0xff, 0x0005 },
+	{ 0x30, 0x00f0 },
+	{ 0x10, 0x00f8 },
+	{ 0x00, 0x00f9 },
+	{ 0x00, 0x00fa },
+	{ 0x00, 0x00fb },
+	{ 0x00, 0x00ea },
+	{ 0x00, 0x00eb },
+	{ 0x7c, 0x00ef },
+	{ 0x03, 0x006e },
+	{ 0x51, 0x02d0 },
+	{ 0x01, 0x02d2 },
+	{ 0x12, 0x059a },
+	{ 0x11, 0x059e },
+	{ 0x14, 0x05a2 },
+	{ 0x55, 0x05a3 },
+	{ 0x01, 0x02db },
+	{ 0x01, 0x0040 },
 };
 
-static const struct ec_reg_val ec_early_init_sequence[] = {
-	{ 5, 0x10, 0x08cc },
-	{ 5, 0x10, 0x08d0 },
-	{ 5, 0x10, 0x089c },
-	{ 5, 0x10, 0x0878 },
-	{ 5, 0x10, 0x0880 },
-	{ 5, 0x11, 0x0884 },
-	{ 5, 0x10, 0x08e4 },
-	{ 5, 0x10, 0x08e0 },
-	{ 5, 0x10, 0x0848 },
-	{ 5, 0x10, 0x084c },
-	{ 5, 0x10, 0x0850 },
-	{ 5, 0x10, 0x083c },
-	{ 5, 0x10, 0x0840 },
-	{ 5, 0x10, 0x0844 },
-	{ 5, 0x10, 0x0814 },
-	{ 3, 0xff, 0x0005 },
-	{ 3, 0x30, 0x00f0 },
-	{ 3, 0x10, 0x00f8 },
-	{ 3, 0x00, 0x00f9 },
-	{ 3, 0x00, 0x00fa },
-	{ 3, 0x00, 0x00fb },
-	{ 3, 0x00, 0x00ea },
-	{ 3, 0x00, 0x00eb },
-	{ 3, 0x7c, 0x00ef },
-	{ 3, 0x03, 0x006e },
-	{ 3, 0x51, 0x02d0 },
-	{ 3, 0x01, 0x02d2 },
-	{ 3, 0x12, 0x059a },
-	{ 3, 0x11, 0x059e },
-	{ 3, 0x14, 0x05a2 },
-	{ 3, 0x55, 0x05a3 },
-	{ 3, 0x01, 0x02db },
-	{ 3, 0x01, 0x0040 },
+static const struct ec_val_reg ec_hwm_init_seq[] = {
+	{ 0xa0, 0x02fc },
+	{ 0x32, 0x02fd },
+	{ 0x77, 0x0005 },
+	{ 0x0f, 0x0018 },
+	{ 0x2f, 0x0019 },
+	{ 0x2f, 0x001a },
+	{ 0x33, 0x008a },
+	{ 0x33, 0x008b },
+	{ 0x33, 0x008c },
+	{ 0x10, 0x00ba },
+	{ 0xff, 0x00d1 },
+	{ 0xff, 0x00d6 },
+	{ 0xff, 0x00db },
+	{ 0x00, 0x0048 },
+	{ 0x00, 0x0049 },
+	{ 0x00, 0x007a },
+	{ 0x00, 0x007b },
+	{ 0x00, 0x007c },
+	{ 0x00, 0x0080 },
+	{ 0x00, 0x0081 },
+	{ 0x00, 0x0082 },
+	{ 0xbb, 0x0083 },
+	{ 0xb0, 0x0084 },
+	{ 0x88, 0x01a1 },
+	{ 0x80, 0x01a4 },
+	{ 0x00, 0x0088 },
+	{ 0x00, 0x0089 },
+	{ 0x02, 0x00a0 },
+	{ 0x02, 0x00a1 },
+	{ 0x02, 0x00a2 },
+	{ 0x04, 0x00a4 },
+	{ 0x04, 0x00a5 },
+	{ 0x04, 0x00a6 },
+	{ 0x00, 0x00ab },
+	{ 0x3f, 0x00ad },
+	{ 0x07, 0x00b7 },
+	{ 0x50, 0x0062 },
+	{ 0x46, 0x0063 },
+	{ 0x50, 0x0064 },
+	{ 0x46, 0x0065 },
+	{ 0x50, 0x0066 },
+	{ 0x46, 0x0067 },
+	{ 0x98, 0x0057 },
+	{ 0x98, 0x0059 },
+	{ 0x7c, 0x0061 },
+	{ 0x00, 0x01bc },
+	{ 0x00, 0x01bd },
+	{ 0x00, 0x01bb },
+	{ 0xdd, 0x0085 },
+	{ 0xdd, 0x0086 },
+	{ 0x07, 0x0087 },
+	{ 0x5e, 0x0090 },
+	{ 0x5e, 0x0091 },
+	{ 0x5d, 0x0095 },
+	{ 0x00, 0x0096 },
+	{ 0x00, 0x0097 },
+	{ 0x00, 0x009b },
+	{ 0x86, 0x00ae },
+	{ 0x86, 0x00af },
+	{ 0x67, 0x00b3 },
+	{ 0xff, 0x00c4 },
+	{ 0xff, 0x00c5 },
+	{ 0xff, 0x00c9 },
+	{ 0x01, 0x0040 },
+	{ 0x00, 0x02fc },
+	{ 0x9a, 0x02b3 },
+	{ 0x05, 0x02b4 },
+	{ 0x01, 0x02cc },
+	{ 0x4c, 0x02d0 },
+	{ 0x01, 0x02d2 },
+	{ 0x01, 0x006f },
+	{ 0x02, 0x0070 },
+	{ 0x03, 0x0071 },
 };
 
-static void set_ec_ldn_register(uint16_t ldn, uint8_t *val, uint16_t reg)
+static const ec_chassis_tdp_t ec_hwm_chassis3[] = {
+	{ 0x33, 0x0005, TDP_COMMON },
+	{ 0x2f, 0x0018, TDP_COMMON },
+	{ 0x2f, 0x0019, TDP_COMMON },
+	{ 0x2f, 0x001a, TDP_COMMON },
+	{ 0x00, 0x0080, TDP_COMMON },
+	{ 0x00, 0x0081, TDP_COMMON },
+	{ 0xbb, 0x0083, TDP_COMMON },
+	{ 0x8a, 0x0085, TDP_16 },
+	{ 0x2c, 0x0086, TDP_16 },
+	{ 0x66, 0x008a, TDP_16 },
+	{ 0x5b, 0x008b, TDP_16 },
+	{ 0x65, 0x0090, TDP_COMMON },
+	{ 0x70, 0x0091, TDP_COMMON },
+	{ 0x86, 0x0092, TDP_COMMON },
+	{ 0xa4, 0x0096, TDP_COMMON },
+	{ 0xa4, 0x0097, TDP_COMMON },
+	{ 0xa4, 0x0098, TDP_COMMON },
+	{ 0xa4, 0x009b, TDP_COMMON },
+	{ 0x0e, 0x00a0, TDP_COMMON },
+	{ 0x0e, 0x00a1, TDP_COMMON },
+	{ 0x7c, 0x00ae, TDP_COMMON },
+	{ 0x86, 0x00af, TDP_COMMON },
+	{ 0x95, 0x00b0, TDP_COMMON },
+	{ 0x9a, 0x00b3, TDP_COMMON },
+	{ 0x08, 0x00b6, TDP_COMMON },
+	{ 0x08, 0x00b7, TDP_COMMON },
+	{ 0x64, 0x00ea, TDP_COMMON },
+	{ 0xff, 0x00ef, TDP_COMMON },
+	{ 0x15, 0x00f8, TDP_COMMON },
+	{ 0x00, 0x00f9, TDP_COMMON },
+	{ 0x30, 0x00f0, TDP_COMMON },
+	{ 0x01, 0x00fd, TDP_COMMON },
+	{ 0x88, 0x01a1, TDP_COMMON },
+	{ 0x08, 0x01a2, TDP_COMMON },
+	{ 0x08, 0x01b1, TDP_COMMON },
+	{ 0x94, 0x01be, TDP_COMMON },
+	{ 0x94, 0x0280, TDP_16 },
+	{ 0x11, 0x0281, TDP_16 },
+	{ 0x03, 0x0282, TDP_COMMON },
+	{ 0x0a, 0x0283, TDP_COMMON },
+	{ 0x80, 0x0284, TDP_COMMON },
+	{ 0x03, 0x0285, TDP_COMMON },
+	{ 0x68, 0x0288, TDP_16 },
+	{ 0x10, 0x0289, TDP_16 },
+	{ 0x03, 0x028a, TDP_COMMON },
+	{ 0x0a, 0x028b, TDP_COMMON },
+	{ 0x80, 0x028c, TDP_COMMON },
+	{ 0x03, 0x028d, TDP_COMMON },
+};
+
+static const ec_chassis_tdp_t ec_hwm_chassis4[] = {
+	{ 0x33, 0x0005, TDP_COMMON },
+	{ 0x2f, 0x0018, TDP_COMMON },
+	{ 0x2f, 0x0019, TDP_COMMON },
+	{ 0x2f, 0x001a, TDP_COMMON },
+	{ 0x00, 0x0080, TDP_COMMON },
+	{ 0x00, 0x0081, TDP_COMMON },
+	{ 0xbb, 0x0083, TDP_COMMON },
+	{ 0x99, 0x0085, TDP_32 },
+	{ 0x98, 0x0085, TDP_16 },
+	{ 0xbc, 0x0086, TDP_32 },
+	{ 0x1c, 0x0086, TDP_16 },
+	{ 0x39, 0x008a, TDP_32 },
+	{ 0x3d, 0x008a, TDP_16 },
+	{ 0x40, 0x008b, TDP_32 },
+	{ 0x43, 0x008b, TDP_16 },
+	{ 0x68, 0x0090, TDP_COMMON },
+	{ 0x5e, 0x0091, TDP_COMMON },
+	{ 0x86, 0x0092, TDP_COMMON },
+	{ 0xa4, 0x0096, TDP_COMMON },
+	{ 0xa4, 0x0097, TDP_COMMON },
+	{ 0xa4, 0x0098, TDP_COMMON },
+	{ 0xa4, 0x009b, TDP_COMMON },
+	{ 0x0c, 0x00a0, TDP_COMMON },
+	{ 0x0c, 0x00a1, TDP_COMMON },
+	{ 0x72, 0x00ae, TDP_COMMON },
+	{ 0x7c, 0x00af, TDP_COMMON },
+	{ 0x9a, 0x00b0, TDP_COMMON },
+	{ 0x7c, 0x00b3, TDP_COMMON },
+	{ 0x08, 0x00b6, TDP_COMMON },
+	{ 0x08, 0x00b7, TDP_COMMON },
+	{ 0x64, 0x00ea, TDP_COMMON },
+	{ 0xff, 0x00ef, TDP_COMMON },
+	{ 0x15, 0x00f8, TDP_COMMON },
+	{ 0x00, 0x00f9, TDP_COMMON },
+	{ 0x30, 0x00f0, TDP_COMMON },
+	{ 0x01, 0x00fd, TDP_COMMON },
+	{ 0x88, 0x01a1, TDP_COMMON },
+	{ 0x08, 0x01a2, TDP_COMMON },
+	{ 0x08, 0x01b1, TDP_COMMON },
+	{ 0x90, 0x01be, TDP_COMMON },
+	{ 0x94, 0x0280, TDP_32 },
+	{ 0x11, 0x0281, TDP_32 },
+	{ 0x68, 0x0280, TDP_16 },
+	{ 0x10, 0x0281, TDP_16 },
+	{ 0x03, 0x0282, TDP_COMMON },
+	{ 0x0a, 0x0283, TDP_COMMON },
+	{ 0x80, 0x0284, TDP_COMMON },
+	{ 0x03, 0x0285, TDP_COMMON },
+	{ 0xa0, 0x0288, TDP_32 },
+	{ 0x0f, 0x0289, TDP_32 },
+	{ 0xd8, 0x0288, TDP_16 },
+	{ 0x0e, 0x0289, TDP_16 },
+	{ 0x03, 0x028a, TDP_COMMON },
+	{ 0x0a, 0x028b, TDP_COMMON },
+	{ 0x80, 0x028c, TDP_COMMON },
+	{ 0x03, 0x028d, TDP_COMMON },
+};
+
+static const ec_chassis_tdp_t ec_hwm_chassis5[] = {
+	{ 0x33, 0x0005, TDP_COMMON },
+	{ 0x2f, 0x0018, TDP_COMMON },
+	{ 0x2f, 0x0019, TDP_COMMON },
+	{ 0x2f, 0x001a, TDP_COMMON },
+	{ 0x00, 0x0080, TDP_COMMON },
+	{ 0x00, 0x0081, TDP_COMMON },
+	{ 0xbb, 0x0083, TDP_COMMON },
+	{ 0x89, 0x0085, TDP_32 },
+	{ 0x99, 0x0085, TDP_16 },
+	{ 0x9c, 0x0086, TDP_COMMON },
+	{ 0x39, 0x008a, TDP_32 },
+	{ 0x42, 0x008a, TDP_16 },
+	{ 0x6b, 0x008b, TDP_32 },
+	{ 0x74, 0x008b, TDP_16 },
+	{ 0x5e, 0x0091, TDP_COMMON },
+	{ 0x86, 0x0092, TDP_COMMON },
+	{ 0xa4, 0x0096, TDP_COMMON },
+	{ 0xa4, 0x0097, TDP_COMMON },
+	{ 0xa4, 0x0098, TDP_COMMON },
+	{ 0xa4, 0x009b, TDP_COMMON },
+	{ 0x0c, 0x00a0, TDP_COMMON },
+	{ 0x0c, 0x00a1, TDP_COMMON },
+	{ 0x7c, 0x00ae, TDP_COMMON },
+	{ 0x7c, 0x00af, TDP_COMMON },
+	{ 0x9a, 0x00b0, TDP_COMMON },
+	{ 0x7c, 0x00b3, TDP_COMMON },
+	{ 0x08, 0x00b6, TDP_COMMON },
+	{ 0x08, 0x00b7, TDP_COMMON },
+	{ 0x64, 0x00ea, TDP_COMMON },
+	{ 0xff, 0x00ef, TDP_COMMON },
+	{ 0x15, 0x00f8, TDP_COMMON },
+	{ 0x00, 0x00f9, TDP_COMMON },
+	{ 0x30, 0x00f0, TDP_COMMON },
+	{ 0x01, 0x00fd, TDP_COMMON },
+	{ 0x88, 0x01a1, TDP_COMMON },
+	{ 0x08, 0x01a2, TDP_COMMON },
+	{ 0x08, 0x01b1, TDP_COMMON },
+	{ 0x90, 0x01be, TDP_COMMON },
+	{ 0x94, 0x0280, TDP_32 },
+	{ 0x11, 0x0281, TDP_32 },
+	{ 0x3c, 0x0280, TDP_16 },
+	{ 0x0f, 0x0281, TDP_16 },
+	{ 0x03, 0x0282, TDP_COMMON },
+	{ 0x0a, 0x0283, TDP_COMMON },
+	{ 0x80, 0x0284, TDP_COMMON },
+	{ 0x03, 0x0285, TDP_COMMON },
+	{ 0x60, 0x0288, TDP_32 },
+	{ 0x09, 0x0289, TDP_32 },
+	{ 0x98, 0x0288, TDP_16 },
+	{ 0x08, 0x0289, TDP_16 },
+	{ 0x03, 0x028a, TDP_COMMON },
+	{ 0x0a, 0x028b, TDP_COMMON },
+	{ 0x80, 0x028c, TDP_COMMON },
+	{ 0x03, 0x028d, TDP_COMMON },
+};
+
+static const ec_chassis_tdp_t ec_hwm_chassis6[] = {
+	{ 0x33, 0x0005, TDP_COMMON },
+	{ 0x2f, 0x0018, TDP_COMMON },
+	{ 0x2f, 0x0019, TDP_COMMON },
+	{ 0x2f, 0x001a, TDP_COMMON },
+	{ 0x00, 0x0080, TDP_COMMON },
+	{ 0x00, 0x0081, TDP_COMMON },
+	{ 0xbb, 0x0083, TDP_COMMON },
+	{ 0x99, 0x0085, TDP_32 },
+	{ 0x98, 0x0085, TDP_16 },
+	{ 0xdc, 0x0086, TDP_32 },
+	{ 0x9c, 0x0086, TDP_16 },
+	{ 0x3d, 0x008a, TDP_32 },
+	{ 0x43, 0x008a, TDP_16 },
+	{ 0x4e, 0x008b, TDP_32 },
+	{ 0x47, 0x008b, TDP_16 },
+	{ 0x6d, 0x0090, TDP_COMMON },
+	{ 0x5f, 0x0091, TDP_32 },
+	{ 0x61, 0x0091, TDP_16 },
+	{ 0x86, 0x0092, TDP_COMMON },
+	{ 0xa4, 0x0096, TDP_COMMON },
+	{ 0xa4, 0x0097, TDP_COMMON },
+	{ 0xa4, 0x0098, TDP_COMMON },
+	{ 0xa4, 0x009b, TDP_COMMON },
+	{ 0x0e, 0x00a0, TDP_COMMON },
+	{ 0x0e, 0x00a1, TDP_COMMON },
+	{ 0x7c, 0x00ae, TDP_COMMON },
+	{ 0x7c, 0x00af, TDP_COMMON },
+	{ 0x98, 0x00b0, TDP_32 },
+	{ 0x9a, 0x00b0, TDP_16 },
+	{ 0x9a, 0x00b3, TDP_COMMON },
+	{ 0x08, 0x00b6, TDP_COMMON },
+	{ 0x08, 0x00b7, TDP_COMMON },
+	{ 0x64, 0x00ea, TDP_COMMON },
+	{ 0xff, 0x00ef, TDP_COMMON },
+	{ 0x15, 0x00f8, TDP_COMMON },
+	{ 0x00, 0x00f9, TDP_COMMON },
+	{ 0x30, 0x00f0, TDP_COMMON },
+	{ 0x01, 0x00fd, TDP_COMMON },
+	{ 0x88, 0x01a1, TDP_COMMON },
+	{ 0x08, 0x01a2, TDP_COMMON },
+	{ 0x08, 0x01b1, TDP_COMMON },
+	{ 0x97, 0x01be, TDP_32 },
+	{ 0x95, 0x01be, TDP_16 },
+	{ 0x68, 0x0280, TDP_32 },
+	{ 0x10, 0x0281, TDP_32 },
+	{ 0xd8, 0x0280, TDP_16 },
+	{ 0x0e, 0x0281, TDP_16 },
+	{ 0x03, 0x0282, TDP_COMMON },
+	{ 0x0a, 0x0283, TDP_COMMON },
+	{ 0x80, 0x0284, TDP_COMMON },
+	{ 0x03, 0x0285, TDP_COMMON },
+	{ 0xe4, 0x0288, TDP_32 },
+	{ 0x0c, 0x0289, TDP_32 },
+	{ 0x10, 0x0288, TDP_16 },
+	{ 0x0e, 0x0289, TDP_16 },
+	{ 0x03, 0x028a, TDP_COMMON },
+	{ 0x0a, 0x028b, TDP_COMMON },
+	{ 0x80, 0x028c, TDP_COMMON },
+	{ 0x03, 0x028d, TDP_COMMON },
+};
+
+static void ec_read_write_ldn_register(uint16_t ldn, uint8_t *val, uint16_t reg,
+				       uint8_t rw_bit)
 {
 	uint16_t timeout = 0;
-
+	rw_bit &= 1;
 	sch5545_emi_ec2h_mailbox_clear();
-	sch5545_emi_ec_write16(0x8000, ldn | 0x100);
+	sch5545_emi_ec_write16(0x8000, (ldn << 1) | 0x100 | rw_bit);
 
 	sch5545_emi_set_ec_addr(0x8004);
 
-	if ((ldn & 1) != 0)
+	if (rw_bit)
 		outb(*val, emi_bar + SCH5545_EMI_EC_DATA);
 
 	outb(reg & 0xff, emi_bar + SCH5545_EMI_EC_DATA + 2);
@@ -620,24 +804,43 @@ static void set_ec_ldn_register(uint16_t ldn, uint8_t *val, uint16_t reg)
 	sch5545_emi_set_int_src(0x11);
 	sch5545_emi_h2ec_mbox_write(0xc0);
 
-	if ((ldn & 1) == 0)
+	if (!rw_bit)
 		*val = inb(emi_bar + SCH5545_EMI_EC_DATA);
 }
 
-void sch5545_ec_early_init(void)
+static void ec_init_gpios(void)
 {
 	unsigned int i;
 	uint8_t val;
 
-	emi_bar = sch5545_read_emi_bar(0x2f);
-
-	for (i = 0; i < ARRAY_SIZE(ec_early_init_sequence); i++ ) {
-		val = ec_early_init_sequence[i].val;
-		set_ec_ldn_register(ec_early_init_sequence[i].ldn, &val,
-				    ec_early_init_sequence[i].reg);
+	for (i = 0; i < ARRAY_SIZE(ec_gpio_init_table); i++ ) {
+		val = ec_gpio_init_table[i].val;
+		ec_read_write_ldn_register(EC_GPIO_LDN, &val,
+					   ec_gpio_init_table[i].reg,
+					   WRITE_OP);
 	}
 }
 
+static void ec_early_hwm_init(void)
+{
+	unsigned int i;
+	uint8_t val;
+
+	for (i = 0; i < ARRAY_SIZE(ec_hwm_early_init_table); i++ ) {
+		val = ec_hwm_early_init_table[i].val;
+		ec_read_write_ldn_register(EC_HWM_LDN, &val,
+					   ec_hwm_early_init_table[i].reg,
+					   WRITE_OP);
+	}
+}
+
+void sch5545_ec_early_init(void)
+{
+	emi_bar = sch5545_read_emi_bar(0x2f);
+
+	ec_init_gpios();
+	ec_early_hwm_init();
+}
 
 static uint8_t send_mbox_msg_with_int(uint8_t mbox_message)
 {
@@ -695,76 +898,34 @@ static void ec_check_mbox_and_int_status(uint8_t int_src, uint8_t mbox_msg)
 	sch5545_emi_set_int_src_low(val);
 }
 
-int ec_write_read_reg_int_disabled(uint16_t ldn, uint16_t reg,
-						   uint8_t *value,
-						   uint8_t expected)
-{
-	uint8_t int_mask_bckup, status;
-	int ret = -1;
-
-	int_mask_bckup = sch5545_emi_get_int_mask_low();
-	sch5545_emi_set_int_mask_low(0);
-
-	sch5545_emi_ec_write16(0x8000, ldn | 0x100);
-	sch5545_emi_ec_write32(0x8004, (reg << 16) | *value);
-
-	status = send_mbox_msg_with_int(1);
-
-	if ((status == 1) && ((ldn & 1) == 0)) {
-		*value = sch5545_emi_ec_read8(0x8004);
-		ret = 0;
-		if (*value != expected)
-			printk(BIOS_WARNING, "EC returned unexpected value"
-			       " when writing to %04x on ldn %x:"
-			       "expected %02x != %02x\n", reg, ldn, expected,
-			       *value);
-
-	} else if (status != 1) {
-		printk(BIOS_WARNING, "EC mailbox returned unexpected value\n");
-	}
-
-	sch5545_emi_set_int_mask_low(int_mask_bckup);
-
-	return ret;
-}
-
-static uint8_t ec_write_reg_and_readback(uint8_t ldn, uint16_t reg)
+static uint8_t ec_read_write_reg(uint8_t ldn, uint16_t reg, uint8_t *value,
+				 uint8_t rw_bit)
 {
 	uint8_t int_mask_bckup, ret = 0;
+	rw_bit &= 1;
 
 	int_mask_bckup = sch5545_emi_get_int_mask_low();
 	sch5545_emi_set_int_mask_low(0);
 
-	sch5545_emi_ec_write16(0x8000, (ldn | 0x80) << 1);
-	sch5545_emi_ec_write32(0x8004, reg << 16);
-
-	if (send_mbox_msg_with_int(1))
-		ret = sch5545_emi_ec_read8(0x8004);
+	sch5545_emi_ec_write16(0x8000, (ldn << 1) | 0x100 | rw_bit);
+	if (rw_bit)
+		sch5545_emi_ec_write32(0x8004, (reg << 16) | *value);
 	else
-		printk(BIOS_WARNING, "EC mailbox returned unexpected value\n");
+		sch5545_emi_ec_write32(0x8004, reg << 16);
+
+	ret = send_mbox_msg_with_int(1);
+	if (ret && !rw_bit)
+		*value = sch5545_emi_ec_read8(0x8004);
+	else if (ret != 1 && rw_bit)
+		printk(BIOS_WARNING, "EC mailbox returned unexpected value"
+		       " when writing %02x to %04x\n", *value, reg);
+	else if (ret != 1 && !rw_bit)
+		printk(BIOS_WARNING, "EC mailbox returned unexpected value"
+		       " when reading %04x \n", reg);
 
 	sch5545_emi_set_int_mask_low(int_mask_bckup);
 
 	return ret;
-}
-
-int ec_write_read_reg_ldn_without_int(uint16_t ldn, uint16_t reg, uint8_t val)
-{
-	uint8_t status;
-
-	sch5545_emi_ec_write16(0x8000, ldn | 0x100);
-	sch5545_emi_ec_write32(0x8004, (reg << 16) | val);
-
-	status = send_mbox_msg_with_int(1);
-
-	sch5545_emi_set_int_mask_low(0);
-
-	if (status != 1) {
-		printk(BIOS_WARNING, "EC mailbox returned unexpected value\n");
-		return -1;
-	}
-
-	return (int)status;
 }
 
 int ec_write_32_bulk_with_int(uint16_t addr, uint32_t *data,
@@ -782,6 +943,24 @@ int ec_write_32_bulk_with_int(uint16_t addr, uint32_t *data,
 	}
 
 	return (int)status;
+}
+
+
+uint16_t sch5545_get_ec_fw_version(void)
+{
+	uint8_t val;
+	uint16_t ec_fw_version;
+
+	/* Read the FW version currently loaded by EC */
+	ec_read_write_reg(EC_HWM_LDN, 0x2ad, &val, READ_OP);
+	ec_fw_version = (val << 8);
+	ec_read_write_reg(EC_HWM_LDN, 0x2ae, &val, READ_OP);
+	ec_fw_version |= val;
+	ec_read_write_reg(EC_HWM_LDN, 0x2ac, &val, READ_OP);
+	ec_read_write_reg(EC_HWM_LDN, 0x2fd, &val, READ_OP);
+	ec_read_write_reg(EC_HWM_LDN, 0x2b0, &val, READ_OP);
+
+	return ec_fw_version;
 }
 
 void sch5545_update_ec_firmware(uint16_t ec_version)
@@ -830,94 +1009,203 @@ void sch5545_update_ec_firmware(uint16_t ec_version)
 	}
 }
 
-void sch5545_ec_hwm_init(void)
+void sch5545_ec_hwm_early_init(void)
 {
 	uint8_t val;
-
 	int i;
+
+	printk(BIOS_DEBUG, "%s\n", __func__);
 
 	ec_check_mbox_and_int_status(0x20, 0x01);
 
-	ec_write_reg_and_readback(1, 0xcb);
-	ec_write_reg_and_readback(1, 0xb8);
+	ec_read_write_reg(2, 0xcb, &val, READ_OP);
+	printk(BIOS_DEBUG, "%s: 0xcb is %02x\n", __func__, val);
+	ec_read_write_reg(2, 0xb8, &val, READ_OP);
+	printk(BIOS_DEBUG, "%s: 0xb8 is %02x\n", __func__, val);
 
 	for (i = 0; i < ARRAY_SIZE(ec_hwm_init_seq); i++ ) {
 		val = ec_hwm_init_seq[i].val;
-		ec_write_read_reg_int_disabled(ec_hwm_init_seq[i].ldn,
-					       ec_hwm_init_seq[i].reg, &val,
-					       ec_hwm_init_seq[i].expected);
+		ec_read_write_reg(EC_HWM_LDN, ec_hwm_init_seq[i].reg, &val,
+				  WRITE_OP);
 	}
 
 	ec_check_mbox_and_int_status(0x01, 0x01);
 }
+/*
+static int sch5545_multiple_read(uint32_t *buf, uint8_t *bytes_read)
+{
+	uint8_t to_read, i;
 
-uint16_t sch5545_get_ec_fw_version(void)
+	uint32_t status = sch5545_emi_ec_read32(0x8080);
+	to_read = (status >> 24) & 0xff;
+
+	if ((status & 0xff) != 0x0c) {
+		printk(BIOS_WARNING, "Wrong LDN detected (%x), expected 0xc\n",
+			status & 0xff);
+		return -1;
+	}
+
+	if (*bytes_read >= to_read) {
+		for (i = 0; i <= to_read/4; i++) {
+			*(buf + i) = sch5545_emi_ec_read32(0x8084 + i*4);
+			printk(BIOS_WARNING, "%s: read value %08x\n", __func__,
+				*(buf + i));
+		}
+	} else {
+		printk(BIOS_WARNING, "More bytes to read (%x) than"
+			" expected (%x)\n", to_read, *bytes_read);
+		return -1;
+	}
+
+	*bytes_read = to_read;
+
+	if (send_mbox_msg_simple(0x05))
+		return 0;
+
+	printk(BIOS_WARNING, "%s: Mailbox returned unexpected value\n",
+		__func__);
+	return -1;
+
+}
+*/
+static uint8_t get_sku_temperature_target(void)
+{
+	msr_t msr;
+	uint8_t temp_control_offset;
+
+	msr = rdmsr(MSR_TEMPERATURE_TARGET);
+	temp_control_offset = (msr.lo >> 8) & 0xff;
+
+	if (temp_control_offset == 0)
+		temp_control_offset = 20;
+
+	return TCC_TEMPERATURE - temp_control_offset;
+}
+
+static uint8_t get_sku_tdp_config(void)
+{
+	msr_t msr;
+	uint32_t power_unit, tdp;
+	/* Get units */
+	msr = rdmsr(MSR_PKG_POWER_SKU_UNIT);
+	power_unit = msr.lo & 0xf;
+
+	/* Get power defaults for this SKU */
+	msr = rdmsr(MSR_PKG_POWER_SKU);
+	tdp = msr.lo & 0x7fff;
+
+	/* These number will determine which settings to use to init EC */
+	if ((tdp >> power_unit) < 66)
+		return 16;
+	else
+		return 32;
+}
+
+static uint8_t get_chassis_type(void)
+{
+	uint8_t chassis_id;
+
+	chassis_id  = get_gpio(GPIO_CHASSIS_ID0);
+	chassis_id |= get_gpio(GPIO_CHASSIS_ID1) << 1;
+	chassis_id |= get_gpio(GPIO_CHASSIS_ID2) << 2;
+	chassis_id |= get_gpio(GPIO_FRONT_PANEL_CHASSIS_DET_L) << 3;
+
+	/* This mapping will determine which EC init sequence to use */
+	switch (chassis_id)
+	{
+	case 0x0:
+		return 5;
+	case 0x8:
+		return 4;
+	case 0x3:
+	case 0xb:
+		return 3;
+	case 0x1:
+	case 0x9:
+	case 0x5:
+	case 0xd:
+		return 6;
+	default:
+		printk(BIOS_DEBUG, "Unknown chassis ID %x\n", chassis_id);
+		break;
+	}
+
+	return 0xff;
+}
+
+static void prepare_for_hwm_ec_sequence(uint8_t write_only, uint8_t *value)
+{
+	uint16_t reg;
+	uint8_t val;
+
+	if (write_only == 1) {
+		val = *value;
+		reg = 0x02fc;
+	} else {
+		if (value != NULL)
+			ec_read_write_reg(EC_HWM_LDN, 0x02fc, value, READ_OP);
+		val = 0xa0;
+		ec_read_write_reg(EC_HWM_LDN, 0x2fc, &val, WRITE_OP);
+		val = 0x32;
+		reg = 0x02fd;
+	}
+
+	ec_read_write_reg(1, reg, &val, WRITE_OP);
+}
+
+static void ec_hwm_init_late(const ec_chassis_tdp_t *ec_hwm_sequence,
+			     size_t size)
+{
+	unsigned int i;
+	uint8_t val;
+	uint8_t tdp_config = get_sku_tdp_config();
+
+	for (i = 0; i < size; i++ ) {
+		if (ec_hwm_sequence[i].tdp == tdp_config ||
+		    ec_hwm_sequence[i].tdp == TDP_COMMON) {
+			val = ec_hwm_sequence[i].val;
+			ec_read_write_reg(EC_HWM_LDN, ec_hwm_sequence[i].reg,
+					  &val, WRITE_OP);
+		}
+	}
+}
+
+void sch5545_ec_enable_smi(void *unused)
 {
 	uint8_t val;
-	uint16_t ec_fw_version;
 
-	/* Read the FW version currently loaded by EC */
-	val = 0xff;
-	ec_write_read_reg_int_disabled(2, 0x02ad, &val, 0x00);
-	ec_fw_version = (val << 8);
-	ec_write_read_reg_int_disabled(2, 0x02ae, &val, 0x03);
-	ec_fw_version |= val;
-	ec_write_read_reg_int_disabled(2, 0x02ac, &val, 0x18);
-	ec_write_read_reg_int_disabled(2, 0x02fd, &val, 0x32);
-	ec_write_read_reg_int_disabled(2, 0x02b0, &val, 0x00);
+	printk(BIOS_DEBUG, "%s\n", __func__);
 
-	return ec_fw_version;
+	sch5545_emi_init(0x2e);
+	ec_check_mbox_and_int_status(0x01, 0x01);
+
+	/* SioDashController */
+	ec_read_write_reg(EC_HWM_LDN, 0x02d0, &val, READ_OP);
+	ec_read_write_reg(EC_HWM_LDN, 0x059e, &val, READ_OP);
+
+	val = sch5545_emi_get_int_mask_low();
+	sch5545_emi_set_int_mask_low((val & 0xfe) | 8);
+
+	val = inb(SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN1);
+	outb(val | 0x40, SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN1);
+	outb(0x40, SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN2);
+
+	outb(0x01, SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN);
+
+	printk(BIOS_DEBUG, "%s: handling SMIs\n", __func__);
+	sch5545_ec_handle_serirq_smi();
 }
 
-static uint8_t sch5545_multiple_write(uint8_t val1, uint8_t val2,
-				      uint8_t to_read, uint8_t readback)
-{
-	uint8_t i, val, ret = 0;
-
-	for (i = 0; i < to_read; i++)
-		printk(BIOS_DEBUG, "%s: addr 0x80%02x, val is %08x\n",
-		       __func__, i * 4, sch5545_emi_ec_read32(0x8000 + i * 4));
-
-	send_mbox_msg_simple(0x05);
-
-	val = val1;
-	ec_write_read_reg_int_disabled(2, 0x059f, &val, 0x4c);
-	if (readback) {
-		val = 0x00;
-		ec_write_read_reg_int_disabled(2, 0x059e, &val, 0x22);
-		ret = val;
-	}
-	val = val2;
-	ec_write_read_reg_int_disabled(2, 0x059f, &val, 0x4c);
-	ec_write_read_reg_int_disabled(2, 0x05a2, &val, 0x92);
-	ec_write_read_reg_int_disabled(2, 0x059e, &val, 0x22);
-
-	return ret;
-}
-
-void sch5545_ec_finalize(void)
+void sch5545_ec_init_late(void)
 {
 	uint8_t val;
 	uint32_t data[5];
-	int i;
 
-	val = 0x00;
-	ec_write_read_reg_int_disabled(2, 0x02d0, &val, 0x4c);
-	ec_write_read_reg_int_disabled(2, 0x059e, &val, 0x11);
+	printk(BIOS_DEBUG, "%s\n", __func__);
 
-	val = sch5545_emi_get_int_mask_low();
-	if (val != 0)
-		printk(BIOS_INFO, "EC INT mask should be 0, is %02x\n", val);
-	sch5545_emi_set_int_mask_low(val | 8);
-
-	val = 0x98;
-	ec_write_read_reg_int_disabled(2, 0x02ad, &val, 0x00);
-	ec_write_read_reg_int_disabled(2, 0x02ae, &val, 0x03);
-	ec_write_read_reg_int_disabled(2, 0x02ac, &val, 0x18);
-	ec_write_read_reg_int_disabled(2, 0x02fd, &val, 0x32);
-	ec_write_read_reg_int_disabled(2, 0x02b0, &val, 0x00);
-
-	sch5545_multiple_write(0x18, 0xa8, 3, 0);
+	/* Do we need this? */
+	/* DashBiosManager */
+	//sch5545_multiple_read(0x18, 0xa8, 3, 0);
 	sch5545_emi_ec_write32(0x8000, 0x0d0010d);
 	data[0] = 0xc5229201;
 	data[1] = 0x00050100;
@@ -928,7 +1216,7 @@ void sch5545_ec_finalize(void)
 	if (val != 0x08)
 		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
 
-	sch5545_multiple_write(0x10, 0x00, 4, 0);
+	//sch5545_multiple_write(0x10, 0x00, 4, 0);
 	sch5545_emi_ec_write32(0x8000, 0x0d0010d);
 	data[0] = 0xc5229201;
 	data[1] = 0x00040100;
@@ -940,7 +1228,7 @@ void sch5545_ec_finalize(void)
 	if (val != 0x08)
 		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
 
-	sch5545_multiple_write(0x10, 0x00, 4, 0);
+	//sch5545_multiple_write(0x10, 0x00, 4, 0);
 	sch5545_emi_ec_write32(0x8000, 0x0d0010d);
 	data[0] = 0xc6229201;
 	data[1] = 0x00040100;
@@ -952,7 +1240,7 @@ void sch5545_ec_finalize(void)
 	if (val != 0x08)
 		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
 
-	sch5545_multiple_write(0x10, 0x10, 4, 0);
+	//sch5545_multiple_write(0x10, 0x10, 4, 0);
 	sch5545_emi_ec_write32(0x8000, 0x0d0010d);
 	data[0] = 0xc7229201;
 	data[1] = 0x00040100;
@@ -963,7 +1251,7 @@ void sch5545_ec_finalize(void)
 	if (val != 0x08)
 		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
 
-	val = sch5545_multiple_write(0x10, 0x00, 4, 1);
+	//val = sch5545_multiple_write(0x10, 0x00, 4, 1);
 	sch5545_emi_ec_write32(0x8000, 0x0b0010d);
 	data[0] = 0xc0229201;
 	data[1] = 0x00010100;
@@ -974,7 +1262,7 @@ void sch5545_ec_finalize(void)
 	if (val != 0x08)
 		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
 
-	sch5545_multiple_write(0x10, 0x00, 4, 0);
+	//sch5545_multiple_write(0x10, 0x00, 4, 0);
 	sch5545_emi_ec_write32(0x8000, 0x110010d);
 	data[0] = 0xc0229201;
 	data[1] = 0x04000101;
@@ -986,7 +1274,7 @@ void sch5545_ec_finalize(void)
 	if (val != 0x08)
 		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
 
-	sch5545_multiple_write(0x00, 0x00, 4, 0);
+	//sch5545_multiple_write(0x00, 0x00, 4, 0);
 	sch5545_emi_ec_write32(0x8000, 0x070010d);
 	data[0] = 0xc8229201;
 	data[1] = 0x00058000;
@@ -995,7 +1283,7 @@ void sch5545_ec_finalize(void)
 	if (val != 0x08)
 		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
 
-	sch5545_multiple_write(0x10, 0x70, 4, 0);
+	//sch5545_multiple_write(0x10, 0x70, 4, 0);
 	sch5545_emi_ec_write32(0x8000, 0x0f0010d);
 	data[0] = 0xc8229201;
 	data[1] = 0x0d038001;
@@ -1006,7 +1294,7 @@ void sch5545_ec_finalize(void)
 	if (val != 0x08)
 		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
 
-	sch5545_multiple_write(0x10, 0x00, 4, 0);
+	//sch5545_multiple_write(0x10, 0x00, 4, 0);
 	sch5545_emi_ec_write32(0x8000, 0x0c0010d);
 	data[0] = 0xc9229201;
 	data[1] = 0x04038001;
@@ -1017,7 +1305,7 @@ void sch5545_ec_finalize(void)
 	if (val != 0x08)
 		printk(BIOS_INFO, "EC INT SRC should be 0x08, is %02x\n", val);
 
-	sch5545_multiple_write(0x10, 0x07, 7, 0);
+	//sch5545_multiple_write(0x10, 0x07, 7, 0);
 	sch5545_emi_ec_write32(0x8000, 0x0e0010d);
 	data[0] = 0xca229201;
 	data[1] = 0x01038001;
@@ -1040,23 +1328,176 @@ void sch5545_ec_finalize(void)
 
 	send_mbox_msg_simple(0x05);
 	val = 0x10;
-	ec_write_read_reg_int_disabled(2, 0x059f, &val, 0x4c);
+	ec_read_write_reg(EC_HWM_LDN, 0x059f, &val, READ_OP);
+}
 
-	for (i = 0; i < ARRAY_SIZE(ec_final_seq); i++ ) {
-		val = ec_final_seq[i].val;
-		ec_write_read_reg_int_disabled(ec_final_seq[i].ldn,
-					       ec_final_seq[i].reg, &val,
-					       ec_final_seq[i].expected);
+void sch5545_ec_hwm_init(void *unused)
+{
+	uint8_t val, val_2fc, chassis_type, fan_target_offset;
+
+	printk(BIOS_DEBUG, "%s\n", __func__);
+	sch5545_emi_init(0x2e);
+
+	/* From DxeHwmDriver */
+	chassis_type = get_chassis_type();
+	fan_target_offset = get_sku_temperature_target();
+
+	ec_read_write_reg(EC_HWM_LDN, 0x0048, &val, READ_OP);
+	ec_read_write_reg(EC_HWM_LDN, 0x0048, &val, WRITE_OP);
+	ec_read_write_reg(EC_HWM_LDN, 0x0042, &val, READ_OP);
+	ec_read_write_reg(EC_HWM_LDN, 0x0048, &val, READ_OP);
+	val |= 0x02;
+	ec_read_write_reg(EC_HWM_LDN, 0x0048, &val, WRITE_OP);
+	ec_read_write_reg(EC_HWM_LDN, 0x0048, &val, READ_OP);
+	ec_read_write_reg(EC_HWM_LDN, 0x0048, &val, WRITE_OP);
+	ec_read_write_reg(EC_HWM_LDN, 0x0042, &val, READ_OP);
+	ec_read_write_reg(EC_HWM_LDN, 0x0048, &val, READ_OP);
+	val |= 0x04;
+	ec_read_write_reg(EC_HWM_LDN, 0x0048, &val, WRITE_OP);
+	ec_read_write_reg(EC_HWM_LDN, 0x0081, &val, READ_OP);
+	ec_read_write_reg(EC_HWM_LDN, 0x0027, &val, READ_OP);
+
+	ec_check_mbox_and_int_status(0x00, 0x01);
+
+	prepare_for_hwm_ec_sequence(0, &val_2fc);
+
+	if (chassis_type != 0xff) {
+		switch (chassis_type) {
+		case 3:
+			ec_hwm_init_late(ec_hwm_chassis3, 48);
+			printk(BIOS_DEBUG, "Performing HWM init for chassis %d,"
+			       " size %lx\n", chassis_type,
+			       sizeof(ec_hwm_chassis3));
+			break;
+		case 4:
+			ec_hwm_init_late(ec_hwm_chassis4, 56);
+			printk(BIOS_DEBUG, "Performing HWM init for chassis %d,"
+			       " size %lx\n", chassis_type,
+			       sizeof(ec_hwm_chassis4));
+			break;
+		case 5:
+			ec_hwm_init_late(ec_hwm_chassis3, 54);
+			printk(BIOS_DEBUG, "Performing HWM init for chassis %d,"
+			       " size %lx\n", chassis_type,
+			       sizeof(ec_hwm_chassis5));
+			break;
+		case 6:
+			ec_hwm_init_late(ec_hwm_chassis3, 59);
+			printk(BIOS_DEBUG, "Performing HWM init for chassis %d,"
+			       " size %lx\n", chassis_type,
+			       sizeof(ec_hwm_chassis6));
+			break;
+		}
 	}
 
-	ec_write_read_reg_ldn_without_int(2, 0x000d, 0x00);
-	ec_write_read_reg_ldn_without_int(3, 0x000d, 0x00);
-	ec_write_read_reg_ldn_without_int(3, 0x000f, 0x5c);
-	ec_write_read_reg_ldn_without_int(3, 0x000f, 0x23);
-	ec_write_read_reg_ldn_without_int(3, 0x000f, 0x14);
-	ec_write_read_reg_ldn_without_int(3, 0x000f, 0x08);
-	ec_write_read_reg_ldn_without_int(3, 0x000f, 0x01);
-	ec_write_read_reg_ldn_without_int(3, 0x0385, 0xff);
-	ec_write_read_reg_ldn_without_int(3, 0x000d, 0x08);
-	ec_write_read_reg_ldn_without_int(3, 0x000f, 0x80);
+	if (CONFIG_MAX_CPUS > 2) {
+		val = 0x30;
+		ec_read_write_reg(EC_HWM_LDN, 0x009e, &val, WRITE_OP);
+		ec_read_write_reg(EC_HWM_LDN, 0x00ea, &val, READ_OP);
+		printk(BIOS_DEBUG, "%s: more than 2 cores, 0xea reg is %02x\n",
+		       __func__, val);
+		ec_read_write_reg(EC_HWM_LDN, 0x00eb, &val, WRITE_OP);
+	}
+
+	ec_read_write_reg(EC_HWM_LDN, 0x02fc, &val_2fc, WRITE_OP);
+
+	/* FIXME: check what the variable refers to in DxeHwmDriver */
+	if (1) {
+		ec_read_write_reg(EC_HWM_LDN, 0x0080, &val, READ_OP);
+		val |= 0x60;
+		ec_read_write_reg(EC_HWM_LDN, 0x0080, &val, WRITE_OP);
+		ec_read_write_reg(EC_HWM_LDN, 0x0081, &val, READ_OP);
+		val |= 0x60;
+		ec_read_write_reg(EC_HWM_LDN, 0x0081, &val, WRITE_OP);
+	}
+
+	ec_read_write_reg(EC_HWM_LDN, 0x00b8, &val, READ_OP);
+
+	if (chassis_type == 4 || chassis_type == 5) {
+		ec_read_write_reg(EC_HWM_LDN, 0x00a0, &val, READ_OP);
+		val &= 0xfb;
+		ec_read_write_reg(EC_HWM_LDN, 0x00a0, &val, WRITE_OP);
+		ec_read_write_reg(EC_HWM_LDN, 0x00a1, &val, READ_OP);
+		val &= 0xfb;
+		ec_read_write_reg(EC_HWM_LDN, 0x00a1, &val, WRITE_OP);
+		ec_read_write_reg(EC_HWM_LDN, 0x00a2, &val, READ_OP);
+		val &= 0xfb;
+		ec_read_write_reg(EC_HWM_LDN, 0x00a2, &val, WRITE_OP);
+		val = 0x99;
+		ec_read_write_reg(EC_HWM_LDN, 0x008a, &val, WRITE_OP);
+		val = 0x47;
+		ec_read_write_reg(EC_HWM_LDN, 0x008b, &val, WRITE_OP);
+		val = 0x91;
+		ec_read_write_reg(EC_HWM_LDN, 0x008c, &val, WRITE_OP);
+	}
+
+	ec_read_write_reg(EC_HWM_LDN, 0x0049, &val, READ_OP);
+	val &= 0xf7;
+	ec_read_write_reg(EC_HWM_LDN, 0x0049, &val, WRITE_OP);
+
+	val = 0x6a;
+	if (chassis_type != 3)
+		ec_read_write_reg(EC_HWM_LDN, 0x0059, &val, WRITE_OP);
+	else
+		ec_read_write_reg(EC_HWM_LDN, 0x0057, &val, WRITE_OP);
+
+	ec_read_write_reg(EC_HWM_LDN, 0x0041, &val, READ_OP);
+	val |= 0x40;
+	ec_read_write_reg(EC_HWM_LDN, 0x0041, &val, WRITE_OP);
+
+	if (chassis_type == 3) {
+		ec_read_write_reg(EC_HWM_LDN, 0x0049, &val, READ_OP);
+		val |= 0x04;
+	} else {
+		ec_read_write_reg(EC_HWM_LDN, 0x0049, &val, READ_OP);
+		val |= 0x08;
+	}
+	ec_read_write_reg(EC_HWM_LDN, 0x0049, &val, WRITE_OP);
+
+	val = 0x0e;
+	ec_read_write_reg(EC_HWM_LDN, 0x007b, &val, WRITE_OP);
+	ec_read_write_reg(EC_HWM_LDN, 0x007c, &val, WRITE_OP);
+	val = 0x01;
+	ec_read_write_reg(EC_HWM_LDN, 0x007a, &val, WRITE_OP);
+
+	val = inb(SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN2);
+	outb(val | 0x40, SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN2);
+	val = inb(SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN1);
+	outb(val | 0x40, SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN1);
+
+	sch5545_emi_set_int_mask_low(sch5545_emi_get_int_mask_low() | 2);
+}
+
+void sch5545_ec_final(void *unused)
+{
+	uint8_t val;
+
+	printk(BIOS_DEBUG, "%s\n", __func__);
+	/* DirtyShutdownDxe */
+	val = inb(SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN1);
+	outb(val & 0xbf, SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN1);
+
+	ec_read_write_reg(EC_HWM_LDN, 0x000d, &val, READ_OP);
+	printk(BIOS_DEBUG, "%s: reg 0xd is %02x\n", __func__, val);
+	val = 0x00;
+	ec_read_write_reg(EC_HWM_LDN, 0x000d, &val, WRITE_OP);
+	val = 0x5c;
+	ec_read_write_reg(EC_HWM_LDN, 0x000f, &val, WRITE_OP);
+	val = 0x23;
+	ec_read_write_reg(EC_HWM_LDN, 0x000f, &val, WRITE_OP);
+	val = 0x14;
+	ec_read_write_reg(EC_HWM_LDN, 0x000f, &val, WRITE_OP);
+	val = 0x08;
+	ec_read_write_reg(EC_HWM_LDN, 0x000f, &val, WRITE_OP);
+	val = 0x01;
+	ec_read_write_reg(EC_HWM_LDN, 0x000f, &val, WRITE_OP);
+	val = 0xff;
+	ec_read_write_reg(EC_HWM_LDN, 0x0358, &val, WRITE_OP);
+	val = 0x08;
+	ec_read_write_reg(EC_HWM_LDN, 0x000d, &val, WRITE_OP);
+
+	outb(val, SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN1);
+
+	val = 0x80;
+	ec_read_write_reg(EC_HWM_LDN, 0x000f, &val, WRITE_OP);
 }
