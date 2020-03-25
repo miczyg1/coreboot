@@ -15,6 +15,7 @@
  * GNU General Public License for more details.
  */
 
+#include <bootstate.h>
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci_ops.h>
@@ -22,6 +23,8 @@
 #include <southbridge/intel/bd82x6x/pch.h>
 #include <southbridge/intel/common/gpio.h>
 #include <superio/smsc/sch5545/sch5545.h>
+
+#include "sch5545_ec.h"
 
 #define SIO_PORT				0x2e
 
@@ -71,28 +74,33 @@ static void mainboard_enable(struct device *dev)
 	pin_sts = get_gpio(GPIO_CHASSIS_ID0);
 	pin_sts |= get_gpio(GPIO_CHASSIS_ID1) << 1;
 	pin_sts |= get_gpio(GPIO_CHASSIS_ID2) << 2;
+	pin_sts |= get_gpio(GPIO_FRONT_PANEL_CHASSIS_DET_L) << 3;
 
 	printk(BIOS_DEBUG, "Chassis type:");
 	switch (pin_sts)
 	{
 	case 0:
-		if (get_gpio(GPIO_FRONT_PANEL_CHASSIS_DET_L))
-			printk(BIOS_DEBUG, "DT\n");
-		else
-			printk(BIOS_DEBUG, "MT\n");
+		printk(BIOS_DEBUG, "MT\n");
 		break;
 	case 3:
+	case 11:
 		printk(BIOS_DEBUG, "USFF\n");
 		break;
 	case 4: 
-		/* As per table in shcematics, but don't know what this is */
+		/* As per table in schematics, but don't know what this is */
 		printk(BIOS_DEBUG, "Comoros\n");
 		break;
+	case 1:
+	case 9:
 	case 5:
+	case 13:
 		printk(BIOS_DEBUG, "SFF\n");
 		break;
+	case 8:
+		printk(BIOS_DEBUG, "DT\n");
+		break;
 	default:
-		printk(BIOS_DEBUG, "Unknown\n");
+		printk(BIOS_DEBUG, "Unknown chassis type %u\n", pin_sts);
 		break;
 	}
 
@@ -191,9 +199,14 @@ static void mainboard_final(void *chip_info)
 	if (pin_sts != -1)
 		printk(BIOS_DEBUG, "Internal chassis PC speaker %sconnected\n",
 		       pin_sts ? "not " : "");
+
 }
 
 struct chip_operations mainboard_ops = {
 	.enable_dev = mainboard_enable,
 	.final = mainboard_final,
 };
+
+//BOOT_STATE_INIT_ENTRY(BS_POST_DEVICE, BS_ON_ENTRY, sch5545_ec_enable_smi, NULL);
+//BOOT_STATE_INIT_ENTRY(BS_POST_DEVICE, BS_ON_EXIT, sch5545_ec_hwm_init, NULL);
+//BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_BOOT, BS_ON_EXIT, sch5545_ec_final, NULL);
