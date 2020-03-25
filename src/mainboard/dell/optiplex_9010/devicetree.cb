@@ -22,6 +22,7 @@ chip northbridge/intel/sandybridge
 			register "c2_battery" = "3"
 			register "c3_acpower" = "5"
 			register "c3_battery" = "5"
+			register "tcc_offset" = "5" # TCC of 95C
 			device lapic 0x0 on
 			end
 			device lapic 0xacac off
