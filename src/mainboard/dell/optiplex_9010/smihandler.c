@@ -22,6 +22,8 @@
 #include <southbridge/intel/common/pmutil.h>
 #include <southbridge/intel/common/pmbase.h>
 
+#include "sch5545_ec.h"
+
 static void dump_pmbase(void)
 {
 
@@ -78,3 +80,9 @@ void mainboard_smi_sleep(u8 slp_typ)
 
 	}
 }
+
+void mainboard_smi_serirq(void)
+{
+//	sch5545_ec_handle_serirq_smi();
+}
+
