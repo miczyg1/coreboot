@@ -121,7 +121,9 @@ void mainboard_early_init(int s3resume)
 		sch5545_update_ec_firmware(ec_fw_version);
 	}
 
-	printk(BIOS_DEBUG, "EC early init complete.\n");
+	sch5545_ec_update_temperature_tables();
+
+	printk(BIOS_DEBUG, "EC init complete.\n");
 
 	sch5545_enable_uart(0x2e, 0);
 }
@@ -133,6 +135,7 @@ void mainboard_config_superio(void)
 	sch5545_early_init(0x2e);
 	sch5545_emi_init(0x2e);
 	sch5545_emi_disable_interrupts();
+	sch5545_enable_uart(0x2e, 0);
 }
 
 void mainboard_get_spd(spd_raw_data *spd, bool id_only)
