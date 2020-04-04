@@ -26,8 +26,6 @@
 
 #include "sch5545_ec.h"
 
-#define TCC_TEMPERATURE				95
-
 #define GPIO_CHASSIS_ID0			1
 #define GPIO_CHASSIS_ID1			17
 #define GPIO_CHASSIS_ID2			37
@@ -436,7 +434,7 @@ static const struct ec_val_reg ec_gpio_init_table[] = {
 	 */
 	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x08cc }, /* GP063 (def) /KBDRST#*/
 	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x08d0 }, /* GP064 (def) /A20M */
-	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x089c }, /* GP047/TXD1 (def)  */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x089c }, /* GP047 / TXD1 (def) */
 	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x0878 }, /* GP036 (def) /SMBCLK1 */
 	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x0880 }, /* GP040 (def) / SMBDAT1 */
 	{ EC_GPIO_OD | EC_GPIO_FUNC1, 0x0884 }, /* GP041 (def) / IO_PME# */
@@ -445,9 +443,9 @@ static const struct ec_val_reg ec_gpio_init_table[] = {
 	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x0848 }, /* GP022 (def) / PWM1 */
 	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x084c }, /* GP023 (def) / PWM2 */
 	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x0850 }, /* GP024 (def) / PWM3 */
-	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x083c }, /* GP017 - TACH1 (def) */
-	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x0840 }, /* GP020 - TACH2 (def) */
-	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x0844 }, /* GP021 - TACH3 (def) */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x083c }, /* GP017 / TACH1 (def) */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x0840 }, /* GP020 / TACH2 (def) */
+	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x0844 }, /* GP021 / TACH3 (def) */
 	{ EC_GPIO_PP | EC_GPIO_FUNC1, 0x0814 }, /* GP005 (def) / PECI_REQ# */
 };
 
@@ -549,57 +547,6 @@ static const struct ec_val_reg ec_hwm_init_seq[] = {
 	{ 0x03, 0x0071 },
 };
 
-static const ec_chassis_tdp_t ec_hwm_chassis3[] = {
-	{ 0x33, 0x0005, TDP_COMMON },
-	{ 0x2f, 0x0018, TDP_COMMON },
-	{ 0x2f, 0x0019, TDP_COMMON },
-	{ 0x2f, 0x001a, TDP_COMMON },
-	{ 0x00, 0x0080, TDP_COMMON },
-	{ 0x00, 0x0081, TDP_COMMON },
-	{ 0xbb, 0x0083, TDP_COMMON },
-	{ 0x8a, 0x0085, TDP_16 },
-	{ 0x2c, 0x0086, TDP_16 },
-	{ 0x66, 0x008a, TDP_16 },
-	{ 0x5b, 0x008b, TDP_16 },
-	{ 0x65, 0x0090, TDP_COMMON },
-	{ 0x70, 0x0091, TDP_COMMON },
-	{ 0x86, 0x0092, TDP_COMMON },
-	{ 0xa4, 0x0096, TDP_COMMON },
-	{ 0xa4, 0x0097, TDP_COMMON },
-	{ 0xa4, 0x0098, TDP_COMMON },
-	{ 0xa4, 0x009b, TDP_COMMON },
-	{ 0x0e, 0x00a0, TDP_COMMON },
-	{ 0x0e, 0x00a1, TDP_COMMON },
-	{ 0x7c, 0x00ae, TDP_COMMON },
-	{ 0x86, 0x00af, TDP_COMMON },
-	{ 0x95, 0x00b0, TDP_COMMON },
-	{ 0x9a, 0x00b3, TDP_COMMON },
-	{ 0x08, 0x00b6, TDP_COMMON },
-	{ 0x08, 0x00b7, TDP_COMMON },
-	{ 0x64, 0x00ea, TDP_COMMON },
-	{ 0xff, 0x00ef, TDP_COMMON },
-	{ 0x15, 0x00f8, TDP_COMMON },
-	{ 0x00, 0x00f9, TDP_COMMON },
-	{ 0x30, 0x00f0, TDP_COMMON },
-	{ 0x01, 0x00fd, TDP_COMMON },
-	{ 0x88, 0x01a1, TDP_COMMON },
-	{ 0x08, 0x01a2, TDP_COMMON },
-	{ 0x08, 0x01b1, TDP_COMMON },
-	{ 0x94, 0x01be, TDP_COMMON },
-	{ 0x94, 0x0280, TDP_16 },
-	{ 0x11, 0x0281, TDP_16 },
-	{ 0x03, 0x0282, TDP_COMMON },
-	{ 0x0a, 0x0283, TDP_COMMON },
-	{ 0x80, 0x0284, TDP_COMMON },
-	{ 0x03, 0x0285, TDP_COMMON },
-	{ 0x68, 0x0288, TDP_16 },
-	{ 0x10, 0x0289, TDP_16 },
-	{ 0x03, 0x028a, TDP_COMMON },
-	{ 0x0a, 0x028b, TDP_COMMON },
-	{ 0x80, 0x028c, TDP_COMMON },
-	{ 0x03, 0x028d, TDP_COMMON },
-};
-
 static const ec_chassis_tdp_t ec_temp_table_chassis3[] = {
 	{ 0x8a, 0x0085, TDP_16 },
 	{ 0x2c, 0x0086, TDP_16 },
@@ -615,65 +562,6 @@ static const ec_chassis_tdp_t ec_temp_table_chassis3[] = {
 	{ 0x03, 0x0285, TDP_COMMON },
 	{ 0x68, 0x0288, TDP_16 },
 	{ 0x10, 0x0289, TDP_16 },
-	{ 0x03, 0x028a, TDP_COMMON },
-	{ 0x0a, 0x028b, TDP_COMMON },
-	{ 0x80, 0x028c, TDP_COMMON },
-	{ 0x03, 0x028d, TDP_COMMON },
-};
-
-static const ec_chassis_tdp_t ec_hwm_chassis4[] = {
-	{ 0x33, 0x0005, TDP_COMMON },
-	{ 0x2f, 0x0018, TDP_COMMON },
-	{ 0x2f, 0x0019, TDP_COMMON },
-	{ 0x2f, 0x001a, TDP_COMMON },
-	{ 0x00, 0x0080, TDP_COMMON },
-	{ 0x00, 0x0081, TDP_COMMON },
-	{ 0xbb, 0x0083, TDP_COMMON },
-	{ 0x99, 0x0085, TDP_32 },
-	{ 0x98, 0x0085, TDP_16 },
-	{ 0xbc, 0x0086, TDP_32 },
-	{ 0x1c, 0x0086, TDP_16 },
-	{ 0x39, 0x008a, TDP_32 },
-	{ 0x3d, 0x008a, TDP_16 },
-	{ 0x40, 0x008b, TDP_32 },
-	{ 0x43, 0x008b, TDP_16 },
-	{ 0x68, 0x0090, TDP_COMMON },
-	{ 0x5e, 0x0091, TDP_COMMON },
-	{ 0x86, 0x0092, TDP_COMMON },
-	{ 0xa4, 0x0096, TDP_COMMON },
-	{ 0xa4, 0x0097, TDP_COMMON },
-	{ 0xa4, 0x0098, TDP_COMMON },
-	{ 0xa4, 0x009b, TDP_COMMON },
-	{ 0x0c, 0x00a0, TDP_COMMON },
-	{ 0x0c, 0x00a1, TDP_COMMON },
-	{ 0x72, 0x00ae, TDP_COMMON },
-	{ 0x7c, 0x00af, TDP_COMMON },
-	{ 0x9a, 0x00b0, TDP_COMMON },
-	{ 0x7c, 0x00b3, TDP_COMMON },
-	{ 0x08, 0x00b6, TDP_COMMON },
-	{ 0x08, 0x00b7, TDP_COMMON },
-	{ 0x64, 0x00ea, TDP_COMMON },
-	{ 0xff, 0x00ef, TDP_COMMON },
-	{ 0x15, 0x00f8, TDP_COMMON },
-	{ 0x00, 0x00f9, TDP_COMMON },
-	{ 0x30, 0x00f0, TDP_COMMON },
-	{ 0x01, 0x00fd, TDP_COMMON },
-	{ 0x88, 0x01a1, TDP_COMMON },
-	{ 0x08, 0x01a2, TDP_COMMON },
-	{ 0x08, 0x01b1, TDP_COMMON },
-	{ 0x90, 0x01be, TDP_COMMON },
-	{ 0x94, 0x0280, TDP_32 },
-	{ 0x11, 0x0281, TDP_32 },
-	{ 0x68, 0x0280, TDP_16 },
-	{ 0x10, 0x0281, TDP_16 },
-	{ 0x03, 0x0282, TDP_COMMON },
-	{ 0x0a, 0x0283, TDP_COMMON },
-	{ 0x80, 0x0284, TDP_COMMON },
-	{ 0x03, 0x0285, TDP_COMMON },
-	{ 0xa0, 0x0288, TDP_32 },
-	{ 0x0f, 0x0289, TDP_32 },
-	{ 0xd8, 0x0288, TDP_16 },
-	{ 0x0e, 0x0289, TDP_16 },
 	{ 0x03, 0x028a, TDP_COMMON },
 	{ 0x0a, 0x028b, TDP_COMMON },
 	{ 0x80, 0x028c, TDP_COMMON },
@@ -710,63 +598,6 @@ static const ec_chassis_tdp_t ec_temp_table_chassis4[] = {
 	{ 0x03, 0x028d, TDP_COMMON },
 };
 
-static const ec_chassis_tdp_t ec_hwm_chassis5[] = {
-	{ 0x33, 0x0005, TDP_COMMON },
-	{ 0x2f, 0x0018, TDP_COMMON },
-	{ 0x2f, 0x0019, TDP_COMMON },
-	{ 0x2f, 0x001a, TDP_COMMON },
-	{ 0x00, 0x0080, TDP_COMMON },
-	{ 0x00, 0x0081, TDP_COMMON },
-	{ 0xbb, 0x0083, TDP_COMMON },
-	{ 0x89, 0x0085, TDP_32 },
-	{ 0x99, 0x0085, TDP_16 },
-	{ 0x9c, 0x0086, TDP_COMMON },
-	{ 0x39, 0x008a, TDP_32 },
-	{ 0x42, 0x008a, TDP_16 },
-	{ 0x6b, 0x008b, TDP_32 },
-	{ 0x74, 0x008b, TDP_16 },
-	{ 0x5e, 0x0091, TDP_COMMON },
-	{ 0x86, 0x0092, TDP_COMMON },
-	{ 0xa4, 0x0096, TDP_COMMON },
-	{ 0xa4, 0x0097, TDP_COMMON },
-	{ 0xa4, 0x0098, TDP_COMMON },
-	{ 0xa4, 0x009b, TDP_COMMON },
-	{ 0x0c, 0x00a0, TDP_COMMON },
-	{ 0x0c, 0x00a1, TDP_COMMON },
-	{ 0x7c, 0x00ae, TDP_COMMON },
-	{ 0x7c, 0x00af, TDP_COMMON },
-	{ 0x9a, 0x00b0, TDP_COMMON },
-	{ 0x7c, 0x00b3, TDP_COMMON },
-	{ 0x08, 0x00b6, TDP_COMMON },
-	{ 0x08, 0x00b7, TDP_COMMON },
-	{ 0x64, 0x00ea, TDP_COMMON },
-	{ 0xff, 0x00ef, TDP_COMMON },
-	{ 0x15, 0x00f8, TDP_COMMON },
-	{ 0x00, 0x00f9, TDP_COMMON },
-	{ 0x30, 0x00f0, TDP_COMMON },
-	{ 0x01, 0x00fd, TDP_COMMON },
-	{ 0x88, 0x01a1, TDP_COMMON },
-	{ 0x08, 0x01a2, TDP_COMMON },
-	{ 0x08, 0x01b1, TDP_COMMON },
-	{ 0x90, 0x01be, TDP_COMMON },
-	{ 0x94, 0x0280, TDP_32 },
-	{ 0x11, 0x0281, TDP_32 },
-	{ 0x3c, 0x0280, TDP_16 },
-	{ 0x0f, 0x0281, TDP_16 },
-	{ 0x03, 0x0282, TDP_COMMON },
-	{ 0x0a, 0x0283, TDP_COMMON },
-	{ 0x80, 0x0284, TDP_COMMON },
-	{ 0x03, 0x0285, TDP_COMMON },
-	{ 0x60, 0x0288, TDP_32 },
-	{ 0x09, 0x0289, TDP_32 },
-	{ 0x98, 0x0288, TDP_16 },
-	{ 0x08, 0x0289, TDP_16 },
-	{ 0x03, 0x028a, TDP_COMMON },
-	{ 0x0a, 0x028b, TDP_COMMON },
-	{ 0x80, 0x028c, TDP_COMMON },
-	{ 0x03, 0x028d, TDP_COMMON },
-};
-
 static const ec_chassis_tdp_t ec_temp_table_chassis5[] = {
 	{ 0x89, 0x0085, TDP_32 },
 	{ 0x99, 0x0085, TDP_16 },
@@ -789,68 +620,6 @@ static const ec_chassis_tdp_t ec_temp_table_chassis5[] = {
 	{ 0x09, 0x0289, TDP_32 },
 	{ 0x98, 0x0288, TDP_16 },
 	{ 0x08, 0x0289, TDP_16 },
-	{ 0x03, 0x028a, TDP_COMMON },
-	{ 0x0a, 0x028b, TDP_COMMON },
-	{ 0x80, 0x028c, TDP_COMMON },
-	{ 0x03, 0x028d, TDP_COMMON },
-};
-
-static const ec_chassis_tdp_t ec_hwm_chassis6[] = {
-	{ 0x33, 0x0005, TDP_COMMON },
-	{ 0x2f, 0x0018, TDP_COMMON },
-	{ 0x2f, 0x0019, TDP_COMMON },
-	{ 0x2f, 0x001a, TDP_COMMON },
-	{ 0x00, 0x0080, TDP_COMMON },
-	{ 0x00, 0x0081, TDP_COMMON },
-	{ 0xbb, 0x0083, TDP_COMMON },
-	{ 0x99, 0x0085, TDP_32 },
-	{ 0x98, 0x0085, TDP_16 },
-	{ 0xdc, 0x0086, TDP_32 },
-	{ 0x9c, 0x0086, TDP_16 },
-	{ 0x3d, 0x008a, TDP_32 },
-	{ 0x43, 0x008a, TDP_16 },
-	{ 0x4e, 0x008b, TDP_32 },
-	{ 0x47, 0x008b, TDP_16 },
-	{ 0x6d, 0x0090, TDP_COMMON },
-	{ 0x5f, 0x0091, TDP_32 },
-	{ 0x61, 0x0091, TDP_16 },
-	{ 0x86, 0x0092, TDP_COMMON },
-	{ 0xa4, 0x0096, TDP_COMMON },
-	{ 0xa4, 0x0097, TDP_COMMON },
-	{ 0xa4, 0x0098, TDP_COMMON },
-	{ 0xa4, 0x009b, TDP_COMMON },
-	{ 0x0e, 0x00a0, TDP_COMMON },
-	{ 0x0e, 0x00a1, TDP_COMMON },
-	{ 0x7c, 0x00ae, TDP_COMMON },
-	{ 0x7c, 0x00af, TDP_COMMON },
-	{ 0x98, 0x00b0, TDP_32 },
-	{ 0x9a, 0x00b0, TDP_16 },
-	{ 0x9a, 0x00b3, TDP_COMMON },
-	{ 0x08, 0x00b6, TDP_COMMON },
-	{ 0x08, 0x00b7, TDP_COMMON },
-	{ 0x64, 0x00ea, TDP_COMMON },
-	{ 0xff, 0x00ef, TDP_COMMON },
-	{ 0x15, 0x00f8, TDP_COMMON },
-	{ 0x00, 0x00f9, TDP_COMMON },
-	{ 0x30, 0x00f0, TDP_COMMON },
-	{ 0x01, 0x00fd, TDP_COMMON },
-	{ 0x88, 0x01a1, TDP_COMMON },
-	{ 0x08, 0x01a2, TDP_COMMON },
-	{ 0x08, 0x01b1, TDP_COMMON },
-	{ 0x97, 0x01be, TDP_32 },
-	{ 0x95, 0x01be, TDP_16 },
-	{ 0x68, 0x0280, TDP_32 },
-	{ 0x10, 0x0281, TDP_32 },
-	{ 0xd8, 0x0280, TDP_16 },
-	{ 0x0e, 0x0281, TDP_16 },
-	{ 0x03, 0x0282, TDP_COMMON },
-	{ 0x0a, 0x0283, TDP_COMMON },
-	{ 0x80, 0x0284, TDP_COMMON },
-	{ 0x03, 0x0285, TDP_COMMON },
-	{ 0xe4, 0x0288, TDP_32 },
-	{ 0x0c, 0x0289, TDP_32 },
-	{ 0x10, 0x0288, TDP_16 },
-	{ 0x0e, 0x0289, TDP_16 },
 	{ 0x03, 0x028a, TDP_COMMON },
 	{ 0x0a, 0x028b, TDP_COMMON },
 	{ 0x80, 0x028c, TDP_COMMON },
@@ -1122,20 +891,6 @@ void sch5545_ec_hwm_early_init(void)
 	ec_check_mbox_and_int_status(0x01, 0x01);
 }
 
-static uint8_t get_sku_temperature_target(void)
-{
-	msr_t msr;
-	uint8_t temp_control_offset;
-
-	msr = rdmsr(MSR_TEMPERATURE_TARGET);
-	temp_control_offset = (msr.lo >> 8) & 0xff;
-
-	if (temp_control_offset == 0)
-		temp_control_offset = 20;
-
-	return TCC_TEMPERATURE - temp_control_offset;
-}
-
 static uint8_t get_sku_tdp_config(void)
 {
 	msr_t msr;
@@ -1187,26 +942,6 @@ static uint8_t get_chassis_type(void)
 	return 0xff;
 }
 
-static void prepare_for_hwm_ec_sequence(uint8_t write_only, uint8_t *value)
-{
-	uint16_t reg;
-	uint8_t val;
-
-	if (write_only == 1) {
-		val = *value;
-		reg = 0x02fc;
-	} else {
-		if (value != NULL)
-			ec_read_write_reg(EC_HWM_LDN, 0x02fc, value, READ_OP);
-		val = 0xa0;
-		ec_read_write_reg(EC_HWM_LDN, 0x2fc, &val, WRITE_OP);
-		val = 0x32;
-		reg = 0x02fd;
-	}
-
-	ec_read_write_reg(1, reg, &val, WRITE_OP);
-}
-
 static void ec_hwm_init_late(const ec_chassis_tdp_t *ec_hwm_sequence,
 			     size_t size)
 {
@@ -1222,32 +957,6 @@ static void ec_hwm_init_late(const ec_chassis_tdp_t *ec_hwm_sequence,
 					  &val, WRITE_OP);
 		}
 	}
-}
-
-void sch5545_ec_enable_smi(void *unused)
-{
-	uint8_t val;
-
-	printk(BIOS_DEBUG, "%s\n", __func__);
-
-	sch5545_emi_init(0x2e);
-	ec_check_mbox_and_int_status(0x01, 0x01);
-
-	/* SioDashController */
-	ec_read_write_reg(EC_HWM_LDN, 0x02d0, &val, READ_OP);
-	ec_read_write_reg(EC_HWM_LDN, 0x059e, &val, READ_OP);
-
-	val = sch5545_emi_get_int_mask_low();
-	sch5545_emi_set_int_mask_low((val & 0xfe) | 8);
-
-	val = inb(SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN1);
-	outb(val | 0x40, SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN1);
-	outb(0x40, SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN2);
-
-	outb(0x01, SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN);
-
-	printk(BIOS_DEBUG, "%s: handling SMIs\n", __func__);
-	sch5545_ec_handle_serirq_smi();
 }
 
 void sch5545_ec_update_temperature_tables(void)
@@ -1280,169 +989,4 @@ void sch5545_ec_update_temperature_tables(void)
 			break;
 		}
 	}
-}
-
-void sch5545_ec_hwm_init(void *unused)
-{
-	uint8_t val, val_2fc, chassis_type, fan_target_offset;
-
-	printk(BIOS_DEBUG, "%s\n", __func__);
-	sch5545_emi_init(0x2e);
-
-	/* From DxeHwmDriver */
-	chassis_type = get_chassis_type();
-	fan_target_offset = get_sku_temperature_target();
-
-	ec_read_write_reg(EC_HWM_LDN, 0x0048, &val, READ_OP);
-	ec_read_write_reg(EC_HWM_LDN, 0x0048, &val, WRITE_OP);
-	ec_read_write_reg(EC_HWM_LDN, 0x0042, &val, READ_OP);
-	ec_read_write_reg(EC_HWM_LDN, 0x0048, &val, READ_OP);
-	val |= 0x02;
-	ec_read_write_reg(EC_HWM_LDN, 0x0048, &val, WRITE_OP);
-	ec_read_write_reg(EC_HWM_LDN, 0x0048, &val, READ_OP);
-	ec_read_write_reg(EC_HWM_LDN, 0x0048, &val, WRITE_OP);
-	ec_read_write_reg(EC_HWM_LDN, 0x0042, &val, READ_OP);
-	ec_read_write_reg(EC_HWM_LDN, 0x0048, &val, READ_OP);
-	val |= 0x04;
-	ec_read_write_reg(EC_HWM_LDN, 0x0048, &val, WRITE_OP);
-	ec_read_write_reg(EC_HWM_LDN, 0x0081, &val, READ_OP);
-	ec_read_write_reg(EC_HWM_LDN, 0x0027, &val, READ_OP);
-
-	ec_check_mbox_and_int_status(0x00, 0x01);
-
-	prepare_for_hwm_ec_sequence(0, &val_2fc);
-
-	if (chassis_type != 0xff) {
-		printk(BIOS_DEBUG, "Performing HWM init for chassis %d\n",
-		       chassis_type);
-		switch (chassis_type) {
-		case 3:
-			ec_hwm_init_late(ec_hwm_chassis3,
-					 ARRAY_SIZE(ec_hwm_chassis3));
-			break;
-		case 4:
-			ec_hwm_init_late(ec_hwm_chassis4,
-					 ARRAY_SIZE(ec_hwm_chassis4));
-			break;
-		case 5:
-			ec_hwm_init_late(ec_hwm_chassis6,
-					 ARRAY_SIZE(ec_hwm_chassis5));
-			break;
-		case 6:
-			ec_hwm_init_late(ec_hwm_chassis6,
-					 ARRAY_SIZE(ec_hwm_chassis6));
-			break;
-		}
-	}
-
-	if (CONFIG_MAX_CPUS > 2) {
-		val = 0x30;
-		ec_read_write_reg(EC_HWM_LDN, 0x009e, &val, WRITE_OP);
-		ec_read_write_reg(EC_HWM_LDN, 0x00ea, &val, READ_OP);
-		printk(BIOS_DEBUG, "%s: more than 2 cores, 0xea reg is %02x\n",
-		       __func__, val);
-		ec_read_write_reg(EC_HWM_LDN, 0x00eb, &val, WRITE_OP);
-	}
-
-	ec_read_write_reg(EC_HWM_LDN, 0x02fc, &val_2fc, WRITE_OP);
-
-	/* FIXME: check what the variable refers to in DxeHwmDriver */
-	if (1) {
-		ec_read_write_reg(EC_HWM_LDN, 0x0080, &val, READ_OP);
-		val |= 0x60;
-		ec_read_write_reg(EC_HWM_LDN, 0x0080, &val, WRITE_OP);
-		ec_read_write_reg(EC_HWM_LDN, 0x0081, &val, READ_OP);
-		val |= 0x60;
-		ec_read_write_reg(EC_HWM_LDN, 0x0081, &val, WRITE_OP);
-	}
-
-	ec_read_write_reg(EC_HWM_LDN, 0x00b8, &val, READ_OP);
-
-	if (chassis_type == 4 || chassis_type == 5) {
-		ec_read_write_reg(EC_HWM_LDN, 0x00a0, &val, READ_OP);
-		val &= 0xfb;
-		ec_read_write_reg(EC_HWM_LDN, 0x00a0, &val, WRITE_OP);
-		ec_read_write_reg(EC_HWM_LDN, 0x00a1, &val, READ_OP);
-		val &= 0xfb;
-		ec_read_write_reg(EC_HWM_LDN, 0x00a1, &val, WRITE_OP);
-		ec_read_write_reg(EC_HWM_LDN, 0x00a2, &val, READ_OP);
-		val &= 0xfb;
-		ec_read_write_reg(EC_HWM_LDN, 0x00a2, &val, WRITE_OP);
-		val = 0x99;
-		ec_read_write_reg(EC_HWM_LDN, 0x008a, &val, WRITE_OP);
-		val = 0x47;
-		ec_read_write_reg(EC_HWM_LDN, 0x008b, &val, WRITE_OP);
-		val = 0x91;
-		ec_read_write_reg(EC_HWM_LDN, 0x008c, &val, WRITE_OP);
-	}
-
-	ec_read_write_reg(EC_HWM_LDN, 0x0049, &val, READ_OP);
-	val &= 0xf7;
-	ec_read_write_reg(EC_HWM_LDN, 0x0049, &val, WRITE_OP);
-
-	val = 0x6a;
-	if (chassis_type != 3)
-		ec_read_write_reg(EC_HWM_LDN, 0x0059, &val, WRITE_OP);
-	else
-		ec_read_write_reg(EC_HWM_LDN, 0x0057, &val, WRITE_OP);
-
-	ec_read_write_reg(EC_HWM_LDN, 0x0041, &val, READ_OP);
-	val |= 0x40;
-	ec_read_write_reg(EC_HWM_LDN, 0x0041, &val, WRITE_OP);
-
-	if (chassis_type == 3) {
-		ec_read_write_reg(EC_HWM_LDN, 0x0049, &val, READ_OP);
-		val |= 0x04;
-	} else {
-		ec_read_write_reg(EC_HWM_LDN, 0x0049, &val, READ_OP);
-		val |= 0x08;
-	}
-	ec_read_write_reg(EC_HWM_LDN, 0x0049, &val, WRITE_OP);
-
-	val = 0x0e;
-	ec_read_write_reg(EC_HWM_LDN, 0x007b, &val, WRITE_OP);
-	ec_read_write_reg(EC_HWM_LDN, 0x007c, &val, WRITE_OP);
-	val = 0x01;
-	ec_read_write_reg(EC_HWM_LDN, 0x007a, &val, WRITE_OP);
-
-	val = inb(SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN2);
-	outb(val | 0x40, SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN2);
-	val = inb(SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN1);
-	outb(val | 0x40, SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN1);
-
-	sch5545_emi_set_int_mask_low(sch5545_emi_get_int_mask_low() | 2);
-}
-
-void sch5545_ec_final(void *unused)
-{
-	uint8_t val;
-
-	printk(BIOS_DEBUG, "%s\n", __func__);
-	/* DirtyShutdownDxe */
-	val = inb(SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN1);
-	outb(val & 0xbf, SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN1);
-
-	ec_read_write_reg(EC_HWM_LDN, 0x000d, &val, READ_OP);
-	printk(BIOS_DEBUG, "%s: reg 0xd is %02x\n", __func__, val);
-	val = 0x00;
-	ec_read_write_reg(EC_HWM_LDN, 0x000d, &val, WRITE_OP);
-	val = 0x5c;
-	ec_read_write_reg(EC_HWM_LDN, 0x000f, &val, WRITE_OP);
-	val = 0x23;
-	ec_read_write_reg(EC_HWM_LDN, 0x000f, &val, WRITE_OP);
-	val = 0x14;
-	ec_read_write_reg(EC_HWM_LDN, 0x000f, &val, WRITE_OP);
-	val = 0x08;
-	ec_read_write_reg(EC_HWM_LDN, 0x000f, &val, WRITE_OP);
-	val = 0x01;
-	ec_read_write_reg(EC_HWM_LDN, 0x000f, &val, WRITE_OP);
-	val = 0xff;
-	ec_read_write_reg(EC_HWM_LDN, 0x0358, &val, WRITE_OP);
-	val = 0x08;
-	ec_read_write_reg(EC_HWM_LDN, 0x000d, &val, WRITE_OP);
-
-	outb(val, SCH5545_RUNTIME_REG_BASE + SCH5545_RR_SMI_EN1);
-
-	val = 0x80;
-	ec_read_write_reg(EC_HWM_LDN, 0x000f, &val, WRITE_OP);
 }

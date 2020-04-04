@@ -58,7 +58,6 @@ void mainboard_smi_gpi(u32 gpi_sts)
 {
 	printk(BIOS_SPEW, "%s: gpi_sts: %08x\n", __func__, gpi_sts);
 	dump_pmbase();
-	/* intrusion switch connected to INTRUDER# on CPU/PCH */
 }
 
 int mainboard_smi_apmc(u8 data)
@@ -85,11 +84,6 @@ void mainboard_smi_sleep(u8 slp_typ)
 	if (slp_typ == 3) {
 
 	}
-}
-
-void mainboard_smi_serirq(void)
-{
-	// sch5545_ec_handle_serirq_smi();
 }
 
 static void beep_start(unsigned int frequency)
