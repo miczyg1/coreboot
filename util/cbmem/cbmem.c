@@ -1262,6 +1262,14 @@ static void dump_elog(void)
 		case ELOG_TYPE_CROS_RECOVERY_MODE: 
 			printf(": reason %02x\n", *elog_data);
 			break;
+		case ELOG_TYPE_INTRUDER_DETECTION:
+			if (*elog_data == ELOG_CASE_OPENED)
+				printf(": Case opened\n");
+			else if (*elog_data == ELOG_CASE_CLOSED)
+				printf(": Case closed\n");
+			else
+				printf(": Unknown (%02x)\n", *elog_data);
+			break;
 		case ELOG_TYPE_MANAGEMENT_ENGINE:
 			if (*elog_data < 6)
 				printf(": %s\n", me_bios_paths[*elog_data]);

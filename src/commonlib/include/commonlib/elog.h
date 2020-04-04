@@ -226,8 +226,6 @@ struct elog_event_mem_cache_update {
 #define ELOG_EC_DEVICE_EVENT_TRACKPAD       0x01
 #define ELOG_EC_DEVICE_EVENT_DSP            0x02
 #define ELOG_EC_DEVICE_EVENT_WIFI           0x03
-#define ELOG_EC_DEVICE_EVENT_CASE_OPEN      0x04
-#define ELOG_EC_DEVICE_EVENT_CASE_CLOSE     0x05
 
 /* S0ix sleep/wake */
 #define ELOG_TYPE_S0IX_ENTER              0xaf
@@ -240,6 +238,11 @@ struct elog_event_mem_cache_update {
 
 /* Cr50 reset to enable TPM */
 #define ELOG_TYPE_CR50_NEED_RESET         0xb2
+
+/* Intruder detection */
+#define ELOG_TYPE_INTRUDER_DETECTION      0xb3
+#define   ELOG_CASE_OPENED                0x01
+#define   ELOG_CASE_CLOSED                0x02
 
 struct elog_event_extended_event {
 	uint8_t event_type;
@@ -305,7 +308,8 @@ struct elog_event_extended_event {
 	{ ELOG_TYPE_S0IX_ENTER,			"Entered S0ix state" },\
 	{ ELOG_TYPE_S0IX_EXIT,			"Exited from S0ix state" },\
 	{ ELOG_TYPE_EXTENDED_EVENT,		"Extended event" },\
-	{ ELOG_TYPE_CR50_NEED_RESET,		"CR50 TPM configuration needs reset" }
+	{ ELOG_TYPE_CR50_NEED_RESET,		"CR50 TPM configuration needs reset" },\
+	{ ELOG_TYPE_INTRUDER_DETECTION,		"Intrusion detection " }
 
 #define EC_EVENT_TO_NAME_TABLE \
 	{ EC_EVENT_LID_CLOSED,			"Lid closed" },\
@@ -377,8 +381,6 @@ struct elog_event_extended_event {
 #define EC_DEVICE_TO_NAME_TABLE \
 	{ ELOG_EC_DEVICE_EVENT_TRACKPAD,	"Trackpad" },\
 	{ ELOG_EC_DEVICE_EVENT_DSP,		"DSP" },\
-	{ ELOG_EC_DEVICE_EVENT_WIFI,		"WiFi" },\
-	{ ELOG_EC_DEVICE_EVENT_CASE_OPEN,	"Intrusion detection - case opened" },\
-	{ ELOG_EC_DEVICE_EVENT_CASE_CLOSE,	"Intrusion detection - case closed" }
+	{ ELOG_EC_DEVICE_EVENT_WIFI,		"WiFi" }
 
 #endif /* ELOG_H_ */

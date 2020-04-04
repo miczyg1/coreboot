@@ -225,8 +225,11 @@ struct elog_event_mem_cache_update {
 
 /* Cr50 reset to enable TPM */
 #define ELOG_TYPE_CR50_NEED_RESET         0xb2
-#define ELOG_TYPE_CASE_OPEN               0xb3
-#define ELOG_TYPE_CASE_CLOSE              0xb4
+
+/* Intruder detection */
+#define ELOG_TYPE_INTRUDER_DETECTION      0xb3
+#define   ELOG_CASE_OPENED                0x01
+#define   ELOG_CASE_CLOSED                0x02
 
 struct elog_event_extended_event {
 	u8 event_type;
