@@ -63,7 +63,7 @@ bootblock-y += beep.c
 romstage-y += beep.c
 ramstage-y += beep.c
 postcar-y += beep.c
-
+smm-y += beep.c
 ###############################################################################
 # common support for early assembly includes
 ###############################################################################
