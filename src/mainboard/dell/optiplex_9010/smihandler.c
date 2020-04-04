@@ -15,6 +15,10 @@
  * GNU General Public License for more details.
  */
 
+#include <delay.h>
+#include <stdint.h>
+#include <elog.h>
+#include <arch/beep.h>
 #include <arch/io.h>
 #include <console/console.h>
 #include <cpu/x86/smm.h>
@@ -23,6 +27,8 @@
 #include <southbridge/intel/common/pmbase.h>
 
 #include "sch5545_ec.h"
+
+static uint8_t intruder_already_reported;
 
 static void dump_pmbase(void)
 {
@@ -83,6 +89,58 @@ void mainboard_smi_sleep(u8 slp_typ)
 
 void mainboard_smi_serirq(void)
 {
-//	sch5545_ec_handle_serirq_smi();
+	// sch5545_ec_handle_serirq_smi();
+}
+
+static void beep_start(unsigned int frequency)
+{
+	unsigned int count = 1193180 / frequency;
+
+	/* Switch on the speaker */
+	outb(inb(0x61)|3, 0x61);
+
+	/* Set command for counter 2, 2 byte write */
+	outb(0xB6, 0x43);
+
+	/* Select desired Hz */
+	outb(count & 0xff, 0x42);
+	outb((count >> 8) & 0xff, 0x42);
+
+}
+
+void mainboard_smi_intruder(u32 tco_sts)
+{
+	/* Disable interrupt for intruder detection temporarily */
+	write_pmbase16(TCO2_CNT, read_pmbase16(TCO2_CNT) & ~4);
+	/* Signal the case was opened */
+	if ((tco_sts & (1 << 16)) && CONFIG(ELOG) && !intruder_already_reported)
+		elog_add_event_byte(ELOG_TYPE_INTRUDER_DETECTION,
+				    ELOG_CASE_OPENED);
+
+	/*
+	 * Software should wait before reading the intruder status again after
+	 * clearing it. However beep already block for ~100usecs which is more
+	 * than required 65usec according to PCH datasheet. Wait for 1 ms in
+	 * order to ensure that INTR_DET will assert if the case is still open.
+	 */
+	udelay(1000);
+	if ((read_pmbase16(TCO2_STS) & 1) && !intruder_already_reported) {
+		/* Case still open */
+		beep_start(2500);
+		intruder_already_reported = 1;
+	} else {
+		/* Case is already closed */
+		intruder_already_reported = 0;
+		/* Switch off the speaker */
+		outb(inb(0x61) & 0xfc, 0x61);
+		if (CONFIG(ELOG))
+			elog_add_event_byte(ELOG_TYPE_INTRUDER_DETECTION,
+					    ELOG_CASE_CLOSED);
+	}
+	/* Clear the status again regardless of the result */
+	write_pmbase16(TCO2_STS ,read_pmbase16(TCO2_STS) | 1);
+
+	/* Enable SMI back for intruder detection */
+	write_pmbase16(TCO2_CNT, read_pmbase16(TCO2_CNT) | 4);
 }
 
