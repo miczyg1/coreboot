@@ -113,3 +113,11 @@ enum cb_err mec5055_ec_command_1(u8 cmd, const u8 *cmd_buf, int argc, u8 *res_bu
 
 	return read_ec_regs(1, res_buf, res_size);
 }
+
+void mec5055_early_init(void)
+{
+	u8 buf[32], c;
+
+	mec5055_ec_command_0(buf, 0xc2, 0);
+	mec5055_ec_command_1(0xab, NULL, 0, &c, 1);
+}
